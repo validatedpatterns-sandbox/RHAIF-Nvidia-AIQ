@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# RHPDS bootstrap entrypoint. Mirrors validatedpatterns/rag-llm-gitops/ansible/site.yaml.
+- name: AI-Q Validated Pattern RHPDS bootstrap
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Launch the installation
+      ansible.builtin.command: ./pattern.sh make install
+      args:
+        chdir: "{{ lookup('env', 'PWD') }}"
+      register: output
+      changed_when: false
+
+    - name: Print output of installation
+      ansible.builtin.debug:
+        msg: "{{ output }}"

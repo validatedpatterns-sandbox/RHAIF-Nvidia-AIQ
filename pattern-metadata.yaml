@@ -50,7 +50,9 @@ external_requirements:
     This pattern installs on a single OpenShift cluster (clusterGroupName
     prod). The instance types above are modest generic equivalents; the same
     footprint on any cloud or on-prem OpenShift cluster is sufficient. No GPU
-    nodes are required for the default MaaS Granite overlay. A reachable MaaS
-    or other LLM HTTP endpoint (AIQ_INFERENCE_BASE_URL) and model name are
-    required. Tavily is optional for web research. The Postgres PVC uses the
-    cluster default StorageClass.
+    nodes are required for the default MaaS Granite overlay. For a future
+    self-hosted RHOAI vLLM profile, provision GPU workers in Phase 0 (see
+    GPU_provisioning.md; AWS default is two g6.2xlarge nodes via
+    make create-gpu-machineset). A reachable MaaS or other LLM HTTP endpoint
+    (AIQ_INFERENCE_BASE_URL) and model name are required. Tavily is optional
+    for web research. The Postgres PVC uses the cluster default StorageClass.
