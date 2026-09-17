@@ -22,8 +22,11 @@ Workflow YAML is mounted from ConfigMap `aiq-workflow-config` (`charts/aiq-workf
 ### Lightning thinking and token budgets
 
 Nemotron 3.5 Lightning is a reasoning model: thinking is **on by default** unless
-`chat_template_kwargs.enable_thinking` is set. The hybrid workflow mirrors the
-catalog profile (`configs/config_cli_default.yml`):
+`chat_template_kwargs.enable_thinking` is set. Lightning roles use `_type: openai`
+against in-cluster vLLM; pass `chat_template_kwargs` (and `thinking_token_budget`)
+under `extra_body`, not as top-level LLM fields — `ChatOpenAI` rejects them in
+`model_kwargs`. The hybrid workflow mirrors the catalog profile
+(`configs/config_cli_default.yml`):
 
 | Role | `enable_thinking` | Notes |
 |---|---|---|
@@ -33,9 +36,9 @@ catalog profile (`configs/config_cli_default.yml`):
 **Hosted catalog vs in-cluster OpenShift:** the catalog profile uses
 `max_tokens: 32768` for shallow Lightning (256K–1M API context). The OpenShift
 hybrid caps vLLM at `--max-model-len=8192` on a single L4, so shallow uses
-`max_tokens: 4096` plus `thinking_token_budget: 2048` so reasoning and the final
-answer both fit after prompt and tool schemas. Do not copy catalog `32768` onto
-this vLLM deployment without raising `--max-model-len` and GPU memory.
+`max_tokens: 4096` plus `extra_body.thinking_token_budget: 2048` so reasoning and
+the final answer both fit after prompt and tool schemas. Do not copy catalog
+`32768` onto this vLLM deployment without raising `--max-model-len` and GPU memory.
 
 Async jobs report `job_status.status: success` when finished (not `completed`).
 
