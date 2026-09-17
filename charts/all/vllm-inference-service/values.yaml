@@ -53,9 +53,6 @@ vllmServingRuntime:
     - "--gpu-memory-utilization"
     - "0.92"
     - "--enforce-eager"
-    - "--enable-auto-tool-choice"
-    - "--tool-call-parser"
-    - "qwen3_coder"
 
   command:
     - python
