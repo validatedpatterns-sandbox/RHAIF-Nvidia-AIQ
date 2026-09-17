@@ -17,9 +17,6 @@ clusterGroup:
       targetNamespaces: []
     openshift-nfd: {}
     nvidia-gpu-operator: {}
-    openshift-serverless:
-      operatorGroup: true
-      targetNamespaces: []
   subscriptions:
     nfd:
       name: nfd
@@ -31,9 +28,6 @@ clusterGroup:
     rhoai:
       name: rhods-operator
       namespace: redhat-ods-operator
-    serverless:
-      name: serverless-operator
-      namespace: openshift-serverless
   applications:
     nfd-config:
       name: nfd-config
