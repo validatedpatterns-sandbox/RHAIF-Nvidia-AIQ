@@ -50,8 +50,6 @@ llms:
     max_tokens: 1024
     num_retries: 5
     parallel_tool_calls: false
-    chat_template_kwargs:
-      enable_thinking: false
 
   nemotron_lightning_agent_llm:
     _type: openai
@@ -63,8 +61,6 @@ llms:
     max_tokens: 8192
     num_retries: 5
     parallel_tool_calls: false
-    chat_template_kwargs:
-      enable_thinking: true
 
   nemotron_ultra_llm:
     _type: nim
