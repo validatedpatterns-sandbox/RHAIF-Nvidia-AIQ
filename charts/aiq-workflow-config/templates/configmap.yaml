@@ -3,9 +3,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: aiq-maas-config
+  name: aiq-workflow-config
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
 data:
-  config_maas_granite.yml: |
-{{ .Files.Get "files/config_maas_granite.yml" | indent 4 }}
+  config_hybrid_lightning.yml: |
+{{ .Files.Get "files/config_hybrid_lightning.yml" | indent 4 }}
