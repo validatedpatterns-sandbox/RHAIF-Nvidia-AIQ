@@ -7,6 +7,8 @@ include Makefile-common
 # Phase 0 GPU worker provisioning (mirrors validatedpatterns/rag-llm-gitops).
 GPU_INSTANCE_TYPE ?= g6.2xlarge
 GPU_REPLICAS ?= 1
+# Azure playbook defaults to 2 replicas (rag-llm-gitops); override when you need a single worker.
+GPU_REPLICAS_AZURE ?= 2
 GPU_VM_SIZE ?= Standard_NC8as_T4_v3
 OVERRIDE_ZONE ?=
 
@@ -22,9 +24,9 @@ create-gpu-machineset: ## Create AWS GPU MachineSet (overrides: GPU_INSTANCE_TYP
 		-e "gpu_instance_type=$(GPU_INSTANCE_TYPE) gpu_replicas=$(GPU_REPLICAS) override_zone=$(OVERRIDE_ZONE)"
 
 .PHONY: create-gpu-machineset-azure
-create-gpu-machineset-azure: ## Create Azure GPU MachineSet (overrides: GPU_VM_SIZE, GPU_REPLICAS, OVERRIDE_ZONE)
+create-gpu-machineset-azure: ## Create Azure GPU MachineSet (overrides: GPU_VM_SIZE, GPU_REPLICAS_AZURE, OVERRIDE_ZONE)
 	ansible-playbook ansible/playbooks/create-gpu-machineset-azure.yaml \
-		-e "gpu_vm_size=$(GPU_VM_SIZE) gpu_replicas=$(GPU_REPLICAS) override_zone=$(OVERRIDE_ZONE)"
+		-e "gpu_vm_size=$(GPU_VM_SIZE) gpu_replicas=$(GPU_REPLICAS_AZURE) override_zone=$(OVERRIDE_ZONE)"
 
 # Ensure workload namespaces exist before install/load-secrets write Secrets into them.
 pattern-install: ensure-pattern-namespaces

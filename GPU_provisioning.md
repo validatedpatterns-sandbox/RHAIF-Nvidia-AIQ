@@ -69,7 +69,15 @@ Later RHOAI vLLM charts can target these nodes with matching tolerations and aff
 ./pattern.sh make create-gpu-machineset-azure
 ```
 
-Override `GPU_VM_SIZE`, `GPU_REPLICAS`, or `OVERRIDE_ZONE` as needed. The default Azure SKU remains `Standard_NC8as_T4_v3` from rag-llm-gitops. Pick an NC-series size with enough VRAM for your target model when you move past Phase 0.
+Defaults (mirrors rag-llm-gitops; Azure playbook uses **two** replicas by default):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `GPU_VM_SIZE` | `Standard_NC8as_T4_v3` | Azure GPU VM SKU |
+| `GPU_REPLICAS_AZURE` | `2` | MachineSet replica count |
+| `OVERRIDE_ZONE` | _(empty)_ | Force an availability zone when capacity fails |
+
+Override `GPU_VM_SIZE`, `GPU_REPLICAS_AZURE`, or `OVERRIDE_ZONE` as needed. For a single Azure GPU worker (hybrid Lightning minimum), pass `GPU_REPLICAS_AZURE=1`. Pick an NC-series size with enough VRAM for your target model when you move past Phase 0.
 
 ## Manual MachineSet (AWS reference)
 
@@ -104,7 +112,7 @@ The GPU Operator reconciles a single cluster-wide policy. On clusters that alrea
 
 **Hybrid Lightning (default `values-prod.yaml`):**
 
-1. **Phase 0 (this doc).** Provision one GPU worker (`GPU_REPLICAS=1`).
+1. **Phase 0 (this doc).** Provision GPU workers: AWS `GPU_REPLICAS=1` (default); Azure `GPU_REPLICAS_AZURE=2` (default) or `1` for a single hybrid-Lightning worker.
 2. **Namespaces + secrets.** `./pattern.sh make ensure-pattern-namespaces` then `./pattern.sh make load-secrets`.
 3. **Install.** `./pattern.sh make install` — syncs NFD/GPU config, OpenShift AI (KServe), vLLM, then AI-Q.
 

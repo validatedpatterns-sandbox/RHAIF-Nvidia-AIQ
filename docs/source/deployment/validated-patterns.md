@@ -67,6 +67,12 @@ If AWS returns `InsufficientInstanceCapacity`, retry with a different availabili
 ./pattern.sh make create-gpu-machineset OVERRIDE_ZONE=us-east-2a
 ```
 
+On Azure clusters with Machine API, the playbook defaults to **two** GPU workers (`GPU_REPLICAS_AZURE=2`). Use one worker for hybrid Lightning:
+
+```bash
+./pattern.sh make create-gpu-machineset-azure GPU_REPLICAS_AZURE=1
+```
+
 Verify the GPU node:
 
 ```bash
@@ -74,9 +80,9 @@ oc get machines -n openshift-machine-api | grep gpu
 oc get nodes -l node-role.kubernetes.io/odh-notebook=
 ```
 
-Phase 0 is complete when one GPU worker is `Ready`, labeled `node-role.kubernetes.io/odh-notebook`, and tainted `odh-notebook=true:NoSchedule`. `nvidia.com/gpu` allocatable appears after the GPU Operator syncs (Phase 1).
+Phase 0 is complete when at least one GPU worker is `Ready`, labeled `node-role.kubernetes.io/odh-notebook`, and tainted `odh-notebook=true:NoSchedule`. `nvidia.com/gpu` allocatable appears after the GPU Operator syncs (Phase 1).
 
-See [GPU_provisioning.md](https://github.com/validatedpatterns-sandbox/RHAIF-Nvidia-AIQ/blob/main/GPU_provisioning.md) for Azure, manual MachineSet, bare-metal, and verification steps. Clusters without Machine API must add GPU nodes outside GitOps.
+See [GPU_provisioning.md](https://github.com/validatedpatterns-sandbox/RHAIF-Nvidia-AIQ/blob/main/GPU_provisioning.md) for Azure defaults, manual MachineSet, bare-metal, and verification steps. Clusters without Machine API must add GPU nodes outside GitOps.
 
 The bootstrap profile uses **1× `g6.2xlarge`** (NVIDIA L4, 24 GiB VRAM) with the **NVFP4 Hugging Face checkpoint** (`nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4`). vLLM reads quantization from `config.json` — do not pass `--quantization` manually. The vLLM chart provisions an **80Gi model-cache PVC** so Hugging Face weights survive pod restarts; set `global.storageClass` in `values-global.yaml` when the cluster default is not suitable. Track upsize and quantization follow-ups in [TODO.md](https://github.com/validatedpatterns-sandbox/RHAIF-Nvidia-AIQ/blob/main/TODO.md).
 

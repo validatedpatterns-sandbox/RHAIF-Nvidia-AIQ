@@ -85,8 +85,14 @@ def _render_vllm_chart(tmp_path: Path) -> list[dict]:
     )
 
 
+def test_hybrid_openshift_overlay_files_exist():
+    assert OVERLAY_BASE_PATH.is_file()
+    assert OVERLAY_HYBRID_PATH.is_file()
+
+
 def test_hybrid_config_chart_file_is_valid_yaml():
     assert CHART_HYBRID_CONFIG.is_file()
+    assert CHART_HYBRID_CONFIG.stat().st_size > 0
     config = yaml.safe_load(CHART_HYBRID_CONFIG.read_text(encoding="utf-8"))
     assert config["general"]["front_end"]["_type"] == "aiq_api"
     assert config["llms"]["nemotron_lightning_intent_llm"]["_type"] == "openai"

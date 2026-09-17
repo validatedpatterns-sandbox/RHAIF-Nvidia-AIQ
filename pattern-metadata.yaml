@@ -50,8 +50,10 @@ external_requirements:
     This pattern installs on a single OpenShift cluster (clusterGroupName
     prod). The instance types above are modest generic equivalents for the
     control plane and generic workers. The hybrid Lightning profile requires one
-    GPU worker in Phase 0 — AWS default is 1× g6.2xlarge (NVIDIA L4) via make
-    create-gpu-machineset — plus OpenShift AI, GPU Operator, and Serverless
+    GPU workers in Phase 0 — AWS default is 1× g6.2xlarge (NVIDIA L4) via make
+    create-gpu-machineset; Azure default is 2× Standard_NC8as_T4_v3 via make
+    create-gpu-machineset-azure (override GPU_REPLICAS_AZURE=1 for one worker) —
+    plus OpenShift AI, GPU Operator, and Serverless
     subscriptions installed by the pattern. Nemotron 3.5 Lightning is served
     in-cluster with a quantized vLLM profile; Nemotron 3 Ultra (clarifier and
     deep research) uses the NVIDIA API Catalog (NVIDIA_API_KEY). Tavily is

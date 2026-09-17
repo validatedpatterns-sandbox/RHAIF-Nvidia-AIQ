@@ -8,6 +8,7 @@
   gather_facts: false
   vars:
     gpu_vm_size: Standard_NC8as_T4_v3
+    # rag-llm-gitops default; Makefile passes GPU_REPLICAS_AZURE (default 2). Use 1 for hybrid Lightning.
     gpu_replicas: 2
     override_zone: ""
     namespace: openshift-machine-api
