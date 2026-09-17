@@ -93,7 +93,7 @@ def test_hybrid_config_chart_file_is_valid_yaml():
     assert config["llms"]["nemotron_ultra_llm"]["_type"] == "nim"
     assert config["functions"]["shallow_research_agent"]["llm"] == "nemotron_lightning_agent_llm"
     assert config["functions"]["clarifier_agent"]["llm"] == "nemotron_ultra_llm"
-    assert config["llms"]["nemotron_lightning_agent_llm"]["max_tokens"] == 8192
+    assert config["llms"]["nemotron_lightning_agent_llm"]["max_tokens"] == 4096
     assert config["llms"]["nemotron_lightning_intent_llm"]["model_name"] == SERVED_MODEL_NAME
     intent_base_url = config["llms"]["nemotron_lightning_intent_llm"]["base_url"]
     agent_base_url = config["llms"]["nemotron_lightning_agent_llm"]["base_url"]
@@ -153,6 +153,7 @@ def test_secret_template_targets_aiq_and_inference_namespaces():
         "DB_USER_PASSWORD",
         "TAVILY_API_KEY",
         "NVIDIA_API_KEY",
+        "VLLM_API_KEY",
     ]
     assert hf_fields == ["hftoken"]
 

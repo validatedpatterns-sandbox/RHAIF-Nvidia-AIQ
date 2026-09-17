@@ -1,6 +1,6 @@
 # OpenShift VP workflow derived from configs/config_cli_default.yml (agent/tool blocks).
 # Intentional diffs: front_end for VP; Lightning roles use openai + in-cluster vLLM;
-# Lightning agent max_tokens is 8192 (lower than CLI default for single-L4 bootstrap).
+# Lightning agent max_tokens must stay below vLLM --max-model-len (8192) after prompt/tools.
 # model_name must match values-global.yaml global.model.servedName.
 #
 # Hybrid OpenShift AI profile: self-hosted Nemotron 3.5 Lightning (intent + shallow)
@@ -58,7 +58,7 @@ llms:
     api_key: ${VLLM_API_KEY:-local-vllm}
     temperature: 0.2
     top_p: 0.7
-    max_tokens: 8192
+    max_tokens: 4096
     num_retries: 5
     parallel_tool_calls: false
 
