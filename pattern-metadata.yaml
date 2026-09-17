@@ -48,11 +48,14 @@ external_requirements:
   # This gets added as a note in the cluster sizing doc page
   cluster_sizing_note: >
     This pattern installs on a single OpenShift cluster (clusterGroupName
-    prod). The instance types above are modest generic equivalents; the same
-    footprint on any cloud or on-prem OpenShift cluster is sufficient. No GPU
-    nodes are required for the default MaaS Granite overlay. For a future
-    self-hosted RHOAI vLLM profile, provision GPU workers in Phase 0 (see
-    GPU_provisioning.md; AWS default is two g6.2xlarge nodes via
-    make create-gpu-machineset). A reachable MaaS or other LLM HTTP endpoint
-    (AIQ_INFERENCE_BASE_URL) and model name are required. Tavily is optional
-    for web research. The Postgres PVC uses the cluster default StorageClass.
+    prod). The instance types above are modest generic equivalents for the
+    control plane and generic workers. The hybrid Lightning profile requires one
+    GPU workers in Phase 0 — AWS default is 1× g6.2xlarge (NVIDIA L4) via make
+    create-gpu-machineset; Azure default is 2× Standard_NC8as_T4_v3 via make
+    create-gpu-machineset-azure (override GPU_REPLICAS_AZURE=1 for one worker) —
+    plus OpenShift AI, GPU Operator, and Serverless
+    subscriptions installed by the pattern. Nemotron 3.5 Lightning is served
+    in-cluster with a quantized vLLM profile; Nemotron 3 Ultra (clarifier and
+    deep research) uses the NVIDIA API Catalog (NVIDIA_API_KEY). Tavily is
+    optional for web research. Postgres and the vLLM model-cache PVC use the cluster
+    default StorageClass unless you set global.storageClass in values-global.yaml.
