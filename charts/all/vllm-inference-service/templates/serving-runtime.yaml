@@ -30,7 +30,7 @@ spec:
           value: {{ include "vllm-inference-service.hfRepo" . | quote }}
         - name: HF_HUB_OFFLINE
           value: '0'
-      image: "{{ .Values.vllmServingRuntime.image.repository }}:{{ .Values.vllmServingRuntime.image.tag }}"
+      image: {{ include "vllm-inference-service.vllmImage" . | quote }}
       name: kserve-container
       ports:
         - containerPort: {{ .Values.vllmServingRuntime.port }}

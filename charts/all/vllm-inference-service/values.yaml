@@ -55,14 +55,15 @@ vllmServingRuntime:
     - "--enforce-eager"
 
   command:
-    - python3
+    - python
     - '-m'
     - vllm.entrypoints.openai.api_server
 
-  # Nemotron 3.5 Lightning (nemotron_h) needs vLLM >= 0.27; RHOAI 2.20 image is too old.
+  # Prefer global.rhoai.vllmImage (RHOAI 3.5+ CUDA runtime). Override image.ref to pin another digest.
   image:
-    repository: vllm/vllm-openai
-    tag: v0.27.1
+    ref: ""
+    repository: registry.redhat.io/rhaii/vllm-cuda-rhel9
+    tag: latest
 
   port: 8080
 

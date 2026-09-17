@@ -166,6 +166,10 @@ def test_pattern_values_target_umbrella_chart_and_serving_stack():
     assert values_global["global"]["secretStore"]["backend"] == "none"
     assert values_global["global"]["model"]["hfRepo"] == HF_REPO
     assert values_global["global"]["model"]["servedName"] == SERVED_MODEL_NAME
+    assert values_global["global"]["rhoai"]["version"] == "3.5"
+    assert values_global["global"]["rhoai"]["vllmImage"].startswith(
+        "registry.redhat.io/rhaii/vllm-cuda-rhel9@sha256:"
+    )
     assert values_global["global"]["inference"]["namespace"] == "aiq-inference"
     assert values_global["global"]["storageClass"] == ""
     assert values_global["main"]["clusterGroupName"] == "prod"
@@ -213,6 +217,8 @@ def test_vllm_chart_renders_served_name_hf_repo_and_model_cache_pvc(tmp_path: Pa
     volume_names = {volume["name"] for volume in serving_runtime["spec"]["volumes"]}
 
     assert env["MODEL_ID"] == HF_REPO
+    assert container["image"].startswith("registry.redhat.io/rhaii/vllm-cuda-rhel9@sha256:")
+    assert container["command"] == ["python", "-m", "vllm.entrypoints.openai.api_server"]
     assert f"--served-model-name={SERVED_MODEL_NAME}" in args
     assert "--quantization=compressed-tensors" not in args
     assert hf_token_ref["valueFrom"]["secretKeyRef"]["optional"] is True

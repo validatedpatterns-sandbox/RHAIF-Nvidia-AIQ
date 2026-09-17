@@ -107,8 +107,8 @@ From the repository root, on the branch Argo CD should track:
 ```text
 wave -1: aiq-workflow-config (workflow ConfigMap)
 wave 10:  nfd-config, nvidia-config (GPU operator enablement)
-wave 15:  openshift-ai (DataScienceCluster, KServe serving only)
-wave 20:  vllm-inference-service (Nemotron Lightning on vLLM)
+wave 15:  openshift-ai (DataScienceCluster, KServe serving only; requires RHOAI 3.5+)
+wave 20:  vllm-inference-service (Nemotron Lightning on RHOAI vLLM CUDA runtime)
 wave 30:  aiq (umbrella Helm chart)
 ```
 

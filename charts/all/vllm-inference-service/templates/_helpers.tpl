@@ -73,6 +73,19 @@ Must match config_hybrid_lightning.yml llms.*.model_name.
 {{- end }}
 
 {{/*
+RHOAI-aligned vLLM CUDA runtime. global.rhoai.vllmImage tracks the operator bundle digest.
+*/}}
+{{- define "vllm-inference-service.vllmImage" -}}
+{{- if .Values.vllmServingRuntime.image.ref -}}
+{{- .Values.vllmServingRuntime.image.ref -}}
+{{- else if .Values.global.rhoai.vllmImage -}}
+{{- .Values.global.rhoai.vllmImage -}}
+{{- else -}}
+{{- printf "%s:%s" .Values.vllmServingRuntime.image.repository .Values.vllmServingRuntime.image.tag -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create the name of the service account to use
 */}}
 {{- define "vllm-inference-service.serviceAccountName" -}}

@@ -12,6 +12,10 @@ global:
   model:
     hfRepo: nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4
     servedName: nemotron-3.5-lightning-30b-a3b
+  # Hybrid Lightning requires RHOAI 3.5+ (vLLM 0.24+). Image digest matches rhods-operator.3.5.0.
+  rhoai:
+    version: "3.5"
+    vllmImage: registry.redhat.io/rhaii/vllm-cuda-rhel9@sha256:ba060ec145e1b7ac3a3b25b89fc75f7d146746156990ff5858235eaa9d158e32
   inference:
     namespace: aiq-inference
   # Optional StorageClass for the vLLM model-cache PVC (omit or empty = cluster default).
