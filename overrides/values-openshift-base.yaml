@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# OpenShift platform overlay for deploy/helm/deployment-k8s.
+# Applied via clusterGroup.applications.aiq.extraValueFiles.
+#
+# Pair with values-openshift-hybrid-lightning.yaml (values-prod.yaml).
+
+aiq:
+  apps:
+    postgres:
+      persistence:
+        - name: aiq-postgres-data
+          accessModes:
+            - ReadWriteOnce
+          size: 10Gi
+    frontend:
+      ingress:
+        enabled: false
+      route:
+        enabled: true
