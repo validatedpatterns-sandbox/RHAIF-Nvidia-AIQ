@@ -1,0 +1,25 @@
+apiVersion: nfd.openshift.io/v1
+kind: NodeFeatureDiscovery
+metadata:
+  name: nfd-instance
+  namespace: openshift-nfd
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  operand:
+    image: >-
+      registry.redhat.io/openshift4/ose-node-feature-discovery{{ ternary "-rhel9" "" (semverCompare ">=4.15.0" .Values.global.clusterVersion) }}:v{{ .Values.global.clusterVersion }}
+    servicePort: 12000
+  workerConfig:
+    configData: |
+      core:
+        sleepInterval: 60s
+      sources:
+        pci:
+          deviceClassWhitelist:
+            - "0200"
+            - "03"
+            - "12"
+          deviceLabelFields:
+            - "vendor"
