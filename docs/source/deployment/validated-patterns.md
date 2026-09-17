@@ -19,6 +19,26 @@ The Validated Pattern ships one OpenShift profile. `values-prod.yaml` deploys hy
 
 Workflow YAML is mounted from ConfigMap `aiq-workflow-config` (`charts/aiq-workflow-config/files/config_hybrid_lightning.yml`).
 
+### Lightning thinking and token budgets
+
+Nemotron 3.5 Lightning is a reasoning model: thinking is **on by default** unless
+`chat_template_kwargs.enable_thinking` is set. The hybrid workflow mirrors the
+catalog profile (`configs/config_cli_default.yml`):
+
+| Role | `enable_thinking` | Notes |
+|---|---|---|
+| Intent (`nemotron_lightning_intent_llm`) | `false` | Structured JSON; reasoning would consume the 1024-token budget |
+| Shallow (`nemotron_lightning_agent_llm`) | `true` | Tool-calling research agent |
+
+**Hosted catalog vs in-cluster OpenShift:** the catalog profile uses
+`max_tokens: 32768` for shallow Lightning (256K–1M API context). The OpenShift
+hybrid caps vLLM at `--max-model-len=8192` on a single L4, so shallow uses
+`max_tokens: 4096` plus `thinking_token_budget: 2048` so reasoning and the final
+answer both fit after prompt and tool schemas. Do not copy catalog `32768` onto
+this vLLM deployment without raising `--max-model-len` and GPU memory.
+
+Async jobs report `job_status.status: success` when finished (not `completed`).
+
 ## Prerequisites
 
 - An OpenShift cluster and `oc` logged in with enough privilege to install operators.
@@ -187,7 +207,7 @@ python3 skills/aiq-research/scripts/aiq.py agents
 # Shallow — must hit in-cluster vLLM (Lightning)
 python3 skills/aiq-research/scripts/aiq.py submit \
   "What is NVIDIA Nemotron in one sentence?" shallow_researcher
-python3 skills/aiq-research/scripts/aiq.py status <JOB_ID>
+python3 skills/aiq-research/scripts/aiq.py status <JOB_ID>   # wait for status: success
 python3 skills/aiq-research/scripts/aiq.py report <JOB_ID>
 
 # Deep — must hit NVIDIA API (Ultra); cancel to limit cost

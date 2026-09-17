@@ -94,6 +94,9 @@ def test_hybrid_config_chart_file_is_valid_yaml():
     assert config["functions"]["shallow_research_agent"]["llm"] == "nemotron_lightning_agent_llm"
     assert config["functions"]["clarifier_agent"]["llm"] == "nemotron_ultra_llm"
     assert config["llms"]["nemotron_lightning_agent_llm"]["max_tokens"] == 4096
+    assert config["llms"]["nemotron_lightning_agent_llm"]["thinking_token_budget"] == 2048
+    assert config["llms"]["nemotron_lightning_intent_llm"]["chat_template_kwargs"]["enable_thinking"] is False
+    assert config["llms"]["nemotron_lightning_agent_llm"]["chat_template_kwargs"]["enable_thinking"] is True
     assert config["llms"]["nemotron_lightning_intent_llm"]["model_name"] == SERVED_MODEL_NAME
     intent_base_url = config["llms"]["nemotron_lightning_intent_llm"]["base_url"]
     agent_base_url = config["llms"]["nemotron_lightning_agent_llm"]["base_url"]

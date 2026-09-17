@@ -80,10 +80,10 @@ while [[ "$ELAPSED" -lt "$JOB_TIMEOUT_SEC" ]]; do
   ELAPSED=$((ELAPSED + POLL_SEC))
   STATUS="$(python3 "$AIQ_PY" status "$JOB_ID" | python3 -c "import sys,json; print(json.load(sys.stdin)['job_status']['status'])")"
   log "  job $JOB_ID status=$STATUS (${ELAPSED}s)"
-  [[ "$STATUS" == "completed" || "$STATUS" == "failure" ]] && break
+  [[ "$STATUS" == "completed" || "$STATUS" == "success" || "$STATUS" == "failure" ]] && break
 done
 python3 "$AIQ_PY" status "$JOB_ID" | tee "$ARTIFACT_DIR/shallow-job.json" >>"$LOG"
-[[ "$STATUS" == "completed" ]] || fail "shallow_researcher did not complete (status=$STATUS)"
+[[ "$STATUS" == "completed" || "$STATUS" == "success" ]] || fail "shallow_researcher did not complete (status=$STATUS)"
 
 log "=== 7) vLLM served traffic during shallow job ==="
 VLLM_HITS="$(oc logs -n "$INFER_NS" -l serving.kserve.io/inferenceservice=vllm-inference-service \
