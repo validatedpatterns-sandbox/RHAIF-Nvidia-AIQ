@@ -1,0 +1,50 @@
+{{- range $appName, $appConfig := .Values.apps }}
+{{- if $appConfig.enabled }}
+{{- $defaults := $.Values.appDefaults | default dict }}
+{{- $defaultRoute := $defaults.route | default dict }}
+{{- $appRoute := $appConfig.route | default dict }}
+{{- $routeEnabled := false }}
+{{- if eq (kindOf $appRoute) "bool" }}
+{{- $routeEnabled = $appRoute }}
+{{- else if hasKey $appRoute "enabled" }}
+{{- $routeEnabled = $appRoute.enabled }}
+{{- else if hasKey $defaultRoute "enabled" }}
+{{- $routeEnabled = $defaultRoute.enabled }}
+{{- end }}
+{{- if $routeEnabled }}
+{{- $svc := $appConfig.service | default dict }}
+{{- $targetPort := $svc.port | default (include "aiq.appPort" (list $appConfig)) }}
+{{- $hostname := include "aiq.routeHostname" (list $ $appName $appConfig) }}
+{{- $appAnnotations := dict }}
+{{- if eq (kindOf $appRoute) "map" }}
+{{- $appAnnotations = $appRoute.annotations | default dict }}
+{{- end }}
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "aiq.appFullname" (list $ $appName) }}
+  namespace: {{ include "aiq.namespace" $ }}
+  labels:
+    {{- include "aiq.appLabels" (list $ $appName $appConfig) | nindent 4 }}
+  {{- if $appAnnotations }}
+  annotations:
+    {{- toYaml $appAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if $hostname }}
+  host: {{ $hostname }}
+  {{- end }}
+  to:
+    kind: Service
+    name: {{ include "aiq.appFullname" (list $ $appName) }}
+    weight: 100
+  port:
+    targetPort: {{ $targetPort }}
+  {{- if and (eq (kindOf $appRoute) "map") $appRoute.tls }}
+  tls:
+    {{- toYaml $appRoute.tls | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

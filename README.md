@@ -15,48 +15,40 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 -->
-<h1>NVIDIA AI-Q Blueprint</h1>
+
+# NVIDIA AI-Q on OpenShift (Validated Pattern)
+
+_Based on the [NVIDIA AI-Q Blueprint](https://github.com/NVIDIA-AI-Blueprints/aiq)._
 
 > **🏆 BENCHMARK NOTE 🏆**
 >
 > To obtain results consistent with the **nvidia-aiq** [DeepResearch Bench](https://huggingface.co/spaces/muset-ai/DeepResearch-Bench-Leaderboard) leaderboard and [DeepResearch Bench II](https://github.com/imlrz/DeepResearch-Bench-II) benchmark repository results, please use the [`drb1`](https://github.com/NVIDIA-AI-Blueprints/aiq/tree/drb1) and [`drb2`](https://github.com/NVIDIA-AI-Blueprints/aiq/tree/drb2) branches, respectively.
 
-
 ## Table of Contents
+
 - [Overview](#overview)
 - [What's New](#whats-new)
 - [Software Components](#software-components)
 - [Target Audience](#target-audience)
 - [Prerequisites](#prerequisites)
+- [Hardware Requirements](#hardware-requirements)
 - [Architecture](#architecture)
-- [Getting Started](#getting-started)
-  - [Clone the Repository](#clone-the-repository)
-  - [Automated Setup](#automated-setup)
-  - [Obtain API Keys](#obtain-api-keys)
-  - [Set Up Environment Variables](#set-up-environment-variables)
-- [Configuration Files](#configuration-files)
-- [Ways to Run the Agents](#ways-to-run-the-agents)
-  - [Command-line interface (CLI)](#command-line-interface-cli)
-  - [Web UI](#web-ui)
-  - [Async Deep Research Jobs](#async-deep-research-jobs)
-  - [MCP Server](#mcp-server)
-  - [Benchmarks](#benchmarks)
-  - [Jupyter Notebooks](#jupyter-notebooks)
-- [Evaluating the Workflow](#evaluating-the-workflow)
-  - [Available Benchmarks](#available-benchmarks)
-  - [Running Evaluations](#running-evaluations)
-- [Development](#development)
-- [Roadmap](#roadmap)
-- [Security Considerations](#security-considerations)
+- [Components deployed](#components-deployed)
+- [Deploying the demo](#deploying-the-demo)
+- [Advanced usage and development](#advanced-usage-and-development)
+  - [Local development setup](#local-development-setup)
+  - [Configuration Files](#configuration-files)
+  - [Ways to Run the Agents](#ways-to-run-the-agents)
+  - [Evaluating the Workflow](#evaluating-the-workflow)
+  - [Development](#development)
+  - [Roadmap](#roadmap)
+  - [Security Considerations](#security-considerations)
+- [Test Plan](#test-plan)
 - [License](#license)
 
 ## Overview
 
 The NVIDIA AI-Q Blueprint is a deployable research backend built on the [NVIDIA NeMo Agent Toolkit](https://docs.nvidia.com/nemo/agent-toolkit/latest/) and [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview). Teams can self-host the application boundary and connect deployment-owned models, data sources, authentication, policy controls, storage, and observability. It provides both **quick, cited answers** and **in-depth, report-style research**, plus benchmarks and evaluation harnesses for measuring quality. AI-Q is focused on governed research workflows; it is not a general-purpose coding-agent harness.
-
-<p align="center">
-<img src="./docs/assets/AIQ-arch-light.png" alt="AI-Q Architecture" width="800">
-</p>
 
 **Key features:**
 
@@ -74,8 +66,14 @@ The NVIDIA AI-Q Blueprint is a deployable research backend built on the [NVIDIA 
 - **Opt-in policy controls** — NeMo Guardrails middleware covers selected workflow and agent boundaries, and narrow application-level encryption can protect final async output plus selected artifact-event content.
 - **Observability, profiling, and cost analysis** — NeMo Relay preserves task, named-agent, LLM, and tool hierarchy across interactive turns and async researchers. ATOF feeds local debugging and tokenomics reports; OTEL exports traces to external observability backends.
 - **Evaluation harnesses** — Built-in benchmarks (for example, FreshQA, DeepResearch) and evaluation scripts to measure quality and iterate on prompts and agent architecture.
-- **Frontend options** — Run through CLI, web UI, or async jobs. Refer to [Getting started](#getting-started) and [Ways to run the agents](#ways-to-run-the-agents).
-- **Deployment options** - Deployment assets for [Docker Compose](deploy/compose/) and [Helm](deploy/helm/deployment-k8s/); the repository source chart honors the Helm release namespace for every namespaced resource.
+- **Frontend options** — Run through CLI, web UI, or async jobs. Refer to [Deploying the demo](#deploying-the-demo) for OpenShift and [Ways to Run the Agents](#ways-to-run-the-agents) for local modes.
+- **Deployment options** — Primary path: [Validated Patterns](https://validatedpatterns.io/) GitOps on OpenShift (this repository). Also: [Docker Compose](deploy/compose/) and [Helm](deploy/helm/deployment-k8s/) for direct installs; the source chart honors the Helm release namespace for every namespaced resource.
+
+### OpenShift deployment (Validated Patterns)
+
+This repository deploys AI-Q on [Red Hat OpenShift](https://www.redhat.com/en/technologies/cloud-computing/openshift) through the [Validated Patterns](https://validatedpatterns.io/) GitOps framework. `./pattern.sh make install` installs the Validated Patterns Operator and OpenShift GitOps, then Argo CD syncs the AI-Q Helm chart into the `aiq` namespace.
+
+The path is **single-cluster only**: no ACM hub/spoke and no HashiCorp Vault / External Secrets Operator. Secrets use the Validated Patterns `none` backend, which writes Kubernetes Secret `aiq-credentials` from a local file. The default overlay targets an OpenAI-compatible [OpenShift AI Model as a Service (MaaS)](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/) Granite endpoint; no cluster GPU nodes are required for that profile.
 
 ## What's New
 
@@ -106,7 +104,6 @@ Each artifact uses version `2.2.0`.
 
 See the [changelog](CHANGELOG.md) for detailed release history; the linked feature docs describe
 configuration and current limitations.
-
 
 ## Software Components
 
@@ -145,13 +142,25 @@ This project is for:
 
 ## Prerequisites
 
+### OpenShift (Validated Pattern)
+
+- [Podman](https://podman.io/) (the `./pattern.sh` wrapper runs make targets in the Validated Patterns utility container)
+- An OpenShift cluster and `oc` logged in with enough privilege to install operators
+- Git, and a remote Argo CD can clone (this repository or your fork) with the branch pushed
+- A reachable OpenAI-compatible LLM endpoint (`AIQ_INFERENCE_BASE_URL`) and model name (`MAAS_MODEL_NAME`) in `~/values-secret-aiq.yaml`
+- Optional: `TAVILY_API_KEY` for web research in the cluster overlay
+
+Default destination namespace is `aiq`. The VP install path does not require local Python or Node.js.
+
+### Local development
+
 - Python 3.11–3.13
 - [uv](https://github.com/astral-sh/uv) package manager
 - NVIDIA API key from [NVIDIA AI](https://build.nvidia.com) (for NIM models)
 - Node.js 22+ and npm (optional, for web UI mode)
 
-
 **Optional requirements:**
+
 - A web-search API key for the configured provider: Tavily, Exa, Nimble, or You.com
 - A paper search API key for one of the supported providers: Serper (`SERPER_API_KEY`), SerpAPI (`SERPAPI_API_KEY`), or SearchAPI (`SEARCHAPI_API_KEY`)
 
@@ -162,6 +171,8 @@ If these optional API keys are not provided, the agent continues to operate with
 ## Hardware Requirements
 
 When using [NVIDIA API Catalog](https://build.nvidia.com/) (the default), inference runs on NVIDIA-hosted infrastructure and there are no local GPU requirements. The hardware references below apply only when self-hosting models via [NVIDIA NIM](https://docs.nvidia.com/nim/).
+
+The default Validated Pattern overlay uses an external MaaS Granite endpoint (`AIQ_INFERENCE_BASE_URL`); **no GPU nodes are required** on the OpenShift cluster for that profile.
 
 | Component | Default Model | Self-Hosted Hardware Reference |
 |-----------|---------------|-------------------------------|
@@ -184,15 +195,162 @@ AI-Q uses a [LangGraph](https://www.langchain.com/langgraph)-based state machine
 
 Each agent can be run individually or as part of the orchestrated workflow. For detailed architecture documentation, refer to [Architecture](docs/source/architecture/overview.md).
 
-## Getting Started
+<p align="center">
+<img src="./docs/assets/AIQ-arch-light.png" alt="AI-Q Architecture" width="800">
+</p>
 
-### Clone the Repository
+_Figure 1. NVIDIA AI-Q research-agent architecture._
+
+On OpenShift, Argo CD applies the unchanged application chart at `deploy/helm/deployment-k8s` plus
+`overrides/values-aiq-openshift.yaml` (MaaS Granite config mount, Postgres PVC on the cluster default
+StorageClass, nginx Ingress disabled, OpenShift Route enabled for the frontend). See
+[OpenShift (Validated Patterns)](docs/source/deployment/validated-patterns.md) for the GitOps overlay.
+
+## Components deployed
+
+Argo CD syncs two applications into namespace `aiq`:
+
+- **aiq-backend** — NVIDIA AI-Q agent (`nvcr.io/nvidia/blueprint/aiq-agent`). Serves the research API on port 8000. The MaaS Granite workflow YAML is mounted from ConfigMap `aiq-maas-config`.
+- **aiq-frontend** — Web UI (`nvcr.io/nvidia/blueprint/aiq-frontend`) on port 3000. Exposed via an OpenShift Route (`aiq-frontend`).
+- **aiq-postgres** — In-cluster PostgreSQL with a PVC for jobs and checkpoints.
+- **aiq-maas-config** — ConfigMap sourced from `charts/aiq-maas-config/files/config_maas_granite.yml`. The NGC backend image does not contain this overlay file.
+
+`make install` also installs the Validated Patterns Operator, OpenShift GitOps (`vp-gitops`), and a `Pattern` custom resource. Secret `aiq-credentials` is loaded into `aiq` from `~/values-secret-aiq.yaml`.
+
+## Deploying the demo
+
+To run the demo, ensure Podman is running on your machine. Clone this repository and push the branch Argo CD should track (typically `main`).
+
+### Login to OpenShift cluster
+
+Replace the token and the API server URL in the command below to log in to the OpenShift cluster.
 
 ```bash
-git clone https://github.com/NVIDIA-AI-Blueprints/aiq.git && cd aiq
+oc login --token=<token> --server=<api_server_url>
 ```
 
-### Automated Setup
+### Cloning repository
+
+```bash
+git clone https://github.com/validatedpatterns-sandbox/RHAIF-Nvidia-AIQ.git
+cd RHAIF-Nvidia-AIQ
+```
+
+### Configure secrets
+
+This pattern deploys the MaaS Granite workflow profile out of the box. Copy the secrets template and fill in real values. Do not commit secrets.
+
+```bash
+cp values-secret.yaml.template ~/values-secret-aiq.yaml
+# edit ~/values-secret-aiq.yaml
+```
+
+Set at minimum: `DB_USER_NAME`, `DB_USER_PASSWORD`, `OPENAI_API_KEY`, `AIQ_INFERENCE_BASE_URL`, `MAAS_MODEL_NAME`. `TAVILY_API_KEY` may be empty for install-only smoke tests. `NVIDIA_API_KEY` is not required for the MaaS Granite profile.
+
+Secrets use the Validated Patterns `none` backend (not Vault): `./pattern.sh make install` writes Kubernetes Secret `aiq-credentials` in namespace `aiq` from this file. For the full API key matrix used in local development, see [Obtain API Keys](#obtain-api-keys).
+
+### GPU nodes
+
+The default MaaS Granite overlay does **not** require GPU nodes on the cluster. Skip GPU MachineSet provisioning unless you switch to a self-hosted GPU model profile.
+
+### Deploy application
+
+`values-global.yaml` sets `global.singleArgoCD: true` so clustergroup Applications are created in the `vp-gitops` Argo CD instance installed by `make install`:
+
+```yaml
+global:
+  pattern: aiq
+  singleArgoCD: true
+  secretStore:
+    backend: none
+main:
+  clusterGroupName: prod
+```
+
+Following commands take about 15–20 minutes.
+
+> **Validated pattern will be deployed**
+
+```bash
+./pattern.sh make validate-prereq
+./pattern.sh make validate-cluster
+./pattern.sh make install
+./pattern.sh make argo-healthcheck
+```
+
+`make install` installs the Validated Patterns Operator, OpenShift GitOps, the `Pattern` resource, and loads `aiq-credentials`. Argo CD then syncs `aiq-maas-config` and `aiq`.
+
+### 1: Verify the installation
+
+- Log in to the OpenShift web console.
+- Navigate to **Workloads** → **Pods**.
+- Select the **`aiq`** project from the drop-down.
+- Confirm `aiq-backend`, `aiq-frontend`, and `aiq-postgres` pods are **Running**, and the Postgres PVC is **Bound**.
+
+From the CLI:
+
+```bash
+oc get pods,pvc -n aiq
+oc -n aiq port-forward svc/aiq-backend 8000:8000
+# in another terminal:
+curl -sf http://127.0.0.1:8000/live && echo
+curl -sf http://127.0.0.1:8000/health && echo
+```
+
+### 2: Launch the application
+
+Primary UI access — open the OpenShift Route:
+
+```bash
+oc get route aiq-frontend -n aiq
+```
+
+Open the `HOST/PORT` URL in a browser (edge TLS, HTTP redirected to HTTPS).
+
+Fallback — port-forward the frontend:
+
+```bash
+oc -n aiq port-forward svc/aiq-frontend 3000:3000
+```
+
+Then open http://127.0.0.1:3000.
+
+### 3: Run a research query
+
+- Open the AI-Q UI from the Route URL.
+- In **Data Sources**, enable **Web Search** (if `TAVILY_API_KEY` is configured).
+- Enter a short prompt (for example, `Reply with exactly: OK`) and send the message.
+- Confirm the assistant responds in the chat session.
+
+### 4: Verify the API (optional)
+
+With the backend port-forward from step 1, submit a generate request:
+
+```bash
+curl -sf http://127.0.0.1:8000/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"query": "Reply with exactly: OK"}'
+```
+
+A `200` response with assistant content confirms MaaS wiring beyond the UI.
+
+### 5: Async deep research (optional)
+
+For long-running research jobs, SSE replay, report follow-up, and durable artifact access on a running deployment, refer to the [REST API documentation](docs/source/integration/rest-api.md).
+
+## Advanced usage and development
+
+The sections below cover local development, workflow configuration, and product depth beyond the OpenShift Validated Pattern install path.
+
+### Local development setup
+
+#### Clone the repository
+
+```bash
+git clone https://github.com/validatedpatterns-sandbox/RHAIF-Nvidia-AIQ.git && cd RHAIF-Nvidia-AIQ
+```
+
+#### Automated Setup
 
 Run the setup script to initialize the environment:
 
@@ -201,11 +359,12 @@ Run the setup script to initialize the environment:
 ```
 
 This script:
+
 - Creates a Python virtual environment with uv
 - Installs all Python dependencies (core, frontends, benchmarks, data sources)
 - Installs UI dependencies (if Node.js is available)
 
-### Manual Installation
+#### Manual Installation
 
 For selective installation, install packages individually:
 
@@ -234,31 +393,30 @@ uv pip install -e ./sources/you_com
 uv pip install -e "./sources/knowledge_layer[llamaindex,foundational_rag]"
 ```
 
-### Obtain API Keys
-
+#### Obtain API Keys
 
 | API        | Environment Variable | Purpose                   | Required                                                    |
 | ---------- | -------------------- | ------------------------- | ----------------------------------------------------------- |
-| NVIDIA API | `NVIDIA_API_KEY`     | LLM inference through NIM | Yes                                                         |
+| NVIDIA API | `NVIDIA_API_KEY`     | LLM inference through NIM | Yes (local NIM profiles)                                    |
 | Tavily     | `TAVILY_API_KEY`     | Web search                | No (if not specified, agent continues without web search)   |
 | Exa        | `EXA_API_KEY`        | Web search                | No (required only when Exa search is configured)            |
 | Nimble     | `NIMBLE_API_KEY`     | Configurable web search   | No (required only when Nimble search is configured)         |
 | You.com    | `YDC_API_KEY`        | Web, contents, and research APIs | No (required only when You.com tools are configured)   |
 | Paper search | `SERPER_API_KEY`, `SERPAPI_API_KEY`, or `SEARCHAPI_API_KEY` | Academic paper search | No (choose one matching the configured provider) |
+| MaaS (VP)  | `OPENAI_API_KEY`, `AIQ_INFERENCE_BASE_URL`, `MAAS_MODEL_NAME` | OpenAI-compatible cluster endpoint | Yes for OpenShift overlay |
 
-
-#### Obtain an NVIDIA API Key
+##### Obtain an NVIDIA API Key
 
 1. Sign in to [NVIDIA Build](https://build.nvidia.com/)
 2. Click on any model, then select "Deploy" > "Get API Key" > "Generate Key"
 
-#### Obtain a Tavily API Key
+##### Obtain a Tavily API Key
 
 1. Sign in to [Tavily](https://tavily.com/)
 2. Navigate to your dashboard
 3. Generate an API key
 
-#### Obtain an Exa API Key
+##### Obtain an Exa API Key
 
 1. Sign in to [Exa](https://exa.ai/)
 2. Create an API key from the dashboard
@@ -267,12 +425,12 @@ uv pip install -e "./sources/knowledge_layer[llamaindex,foundational_rag]"
 Refer to the `exa_web_search` section in the
 [Configuration Reference](docs/source/customization/configuration-reference.md) for workflow usage.
 
-#### Obtain a You.com API Key
+##### Obtain a You.com API Key
 
 Follow the [You.com quickstart](https://you.com/docs/quickstart) to create an API key and add it to `deploy/.env` as
 `YDC_API_KEY`. Refer to [You.com API Suite](docs/source/customization/you-com.md) for tool configuration.
 
-#### Obtain a Paper Search API Key
+##### Obtain a Paper Search API Key
 
 Paper search supports three interchangeable providers. Set the `provider` field on the `paper_search` function in your workflow config (defaults to `serper`):
 
@@ -284,19 +442,19 @@ Paper search supports three interchangeable providers. Set the `provider` field 
 
 Refer to [sources/google_scholar_paper_search/README.md](sources/google_scholar_paper_search/README.md) for configuration details.
 
-### Set Up Environment Variables
+#### Set Up Environment Variables
 
-Create a `.env` file in `deploy/` directory:
+For local and Compose modes, create a `.env` file in the `deploy/` directory:
 
 ```bash
 cp deploy/.env.example deploy/.env
 ```
 
-Replace your API keys.
+Replace your API keys. For OpenShift GitOps, use `~/values-secret-aiq.yaml` instead (see [Configure secrets](#configure-secrets)).
 
 > **Note:** Depending on your usecase, deep research report quality can be enhanced by enabling searching across academic research papers. We use Serper for this. If you want to use paper search, follow the steps in the [Customization guide](docs/source/customization/tools-and-sources.md#disabling-a-tool) to enable it.
 
-## Configuration Files
+### Configuration Files
 
 The `configs/` directory holds YAML workflow configs that define agents, tools, LLMs, and routing. Use the one that matches your run mode and data sources:
 
@@ -313,12 +471,13 @@ The `configs/` directory holds YAML workflow configs that define agents, tools, 
 | `config_domain_routing_and_skills.yml` | Nemotron 3 Ultra; Gemma 4 summary | Direct deep-research profile with domain routing, DuckDuckGo news, Polymarket, enabled Serper paper search, LlamaIndex, built-in skills, and a fresh per-job Modal sandbox. |
 | `config_openshell.yml` | Nemotron 3.5 Lightning; Nemotron 3 Ultra; Gemma 4 summary | Experimental web/API skills profile with artifact capture, fail-closed policy attestation, and one OpenShell sandbox per deep-research job. |
 | `config_mcp.yml` | Nemotron 3.5 Lightning; Nemotron 3 Ultra | Standalone MCP server. Public NIM + Tavily research with PostgreSQL-backed stateless submit/poll/report. Requires `NVIDIA_API_KEY`, `TAVILY_API_KEY`, and `AIQ_CHECKPOINT_DB`. |
+| `charts/aiq-maas-config/files/config_maas_granite.yml` | MaaS Granite (VP default) | OpenShift Validated Pattern overlay; mounted as ConfigMap `aiq-maas-config` in cluster (not via `CONFIG_FILE` locally). |
 
-## Ways to Run the Agents
+### Ways to Run the Agents
 
 The `frontends/` directory contains different interfaces for interacting with the agents. You can also run agents directly through the NeMo Agent Toolkit CLI.
 
-### Command-line interface (CLI)
+#### Command-line interface (CLI)
 
 The CLI provides an interactive research assistant in your terminal:
 
@@ -338,21 +497,24 @@ dotenv -f deploy/.env run nat run --config_file configs/config_cli_default.yml -
 
 The CLI frontend source is in `frontends/cli/`.
 
-### Web UI
+#### Web UI
 
-For a full web-based experience:
+For a full web-based experience on your workstation:
 
 ```bash
 ./scripts/start_e2e.sh
 ```
 
 This starts:
+
 - Backend API server at `http://localhost:8000`
 - Frontend UI at `http://localhost:3000`
 
 The web UI source is in `frontends/ui/`. Refer to [frontends/ui/README.md](frontends/ui/README.md) for more details.
 
-#### Web UI with Docker Compose
+On OpenShift, use the Route from [2: Launch the application](#2-launch-the-application) instead of localhost.
+
+##### Web UI with Docker Compose
 
 You can also run the backend and UI with Docker Compose:
 
@@ -367,14 +529,15 @@ docker compose --env-file ../.env -f docker-compose.yaml up -d --build
 ```
 
 For more details, refer to:
+
 - `deploy/compose/README.md`
 
-### Async Deep Research Jobs
+#### Async Deep Research Jobs
 
 For public endpoints, SSE replay, report follow-up, and durable artifact access, refer to the
 [REST API documentation](docs/source/integration/rest-api.md).
 
-### MCP Server
+#### MCP Server
 
 Expose AI-Q to MCP clients through the standalone, stateless Streamable HTTP server:
 
@@ -400,11 +563,11 @@ on a supported 64-bit Linux/container host. The MCP package's local path depende
 standalone wheel. See the
 [MCP security policy](mcp/SECURITY.md#platform-compatibility) for the full platform contract.
 
-### Benchmarks
+#### Benchmarks
 
 To run agents in evaluation mode, refer to the [Evaluating the Workflow](#evaluating-the-workflow) section.
 
-### Jupyter Notebooks
+#### Jupyter Notebooks
 
 The `docs/notebooks/` directory contains a three-part series that walks through the blueprint from first run to full customization. Run them in order:
 
@@ -414,21 +577,20 @@ The `docs/notebooks/` directory contains a three-part series that walks through 
 | 1 | [Deep Researcher — Web Search](docs/notebooks/1_Deep_Researcher_Web_Search.ipynb) | Deep researcher in depth — Python API, `nat run`, and end-to-end evaluation against the DeepResearch Bench with `nat eval` | Notebook 0 completed; `NVIDIA_API_KEY`, `TAVILY_API_KEY`, `SERPER_API_KEY`; OpenAI or Gemini key for the judge model |
 | 2 | [Deep Researcher — Customization](docs/notebooks/2_Deep_Researcher_Customization.ipynb) | Extending the deep researcher — adding paper search, assigning different LLMs per agent role, editing prompts, and enabling the knowledge layer | Notebooks 0 and 1 completed; `NVIDIA_API_KEY`, `TAVILY_API_KEY`, `SERPER_API_KEY` |
 
-
-## Evaluating the Workflow
+### Evaluating the Workflow
 
 The `frontends/benchmarks/` directory contains evaluation pipelines for assessing agent performance.
 
-### Available Benchmarks
+#### Available Benchmarks
 
 | Benchmark | Description | Location |
 |-----------|-------------|----------|
 | Deep Research Bench | RACE and FACT evaluation for research quality | `frontends/benchmarks/deepresearch_bench/` |
 | FreshQA | Factuality evaluation on time-sensitive questions | `frontends/benchmarks/freshqa/` |
 
-### Running Evaluations
+#### Running Evaluations
 
-### Step 1: Install the dataset
+##### Step 1: Install the dataset
 
 The dataset files are not included in the repository. We have included a script to retrieve them from the [Deep Research Bench Github Repository](https://github.com/Ayanami0730/deep_research_bench/tree/main) and format them for the NeMo Agent Toolkit evaluator.
 
@@ -438,22 +600,23 @@ To download the dataset files, run the following script:
 python frontends/benchmarks/deepresearch_bench/scripts/download_drb_dataset.py
 ```
 
-### Step 2: Generate reports using NAT evaluation harness
+##### Step 2: Generate reports using NAT evaluation harness
 
 ```bash
 dotenv -f deploy/.env run nat eval --config_file frontends/benchmarks/deepresearch_bench/configs/config_deep_research_bench.yml
 ```
 
-### Step 3: Convert the output into a compatible format
+##### Step 3: Convert the output into a compatible format
+
 ```bash
 python frontends/benchmarks/deepresearch_bench/scripts/export_drb_jsonl.py --input <path to your workflow_output.json> --output <path to the output file you want to create with .jsonl extension>
 ```
 
-### Step 4: Run evaluation
+##### Step 4: Run evaluation
+
 Follow instructions in the [Deep Research Bench Github Repository](https://github.com/Ayanami0730/deep_research_bench/tree/main) to run evaluation and obtain scores.
 
-
-### Optional: Phoenix Tracing
+##### Optional: Phoenix Tracing
 
 If your config enables Phoenix tracing, start the Phoenix server before running `nat eval`.
 
@@ -464,13 +627,15 @@ uvx --from arize-phoenix phoenix serve
 ```
 
 For detailed benchmark documentation, refer to:
+
 - [Deep Research Bench README](frontends/benchmarks/deepresearch_bench/README.md)
 - [FreshQA README](frontends/benchmarks/freshqa/README.md)
 
-## Development
+### Development
 
 For development, contribution, and documentation, refer to:
 
+- **[OpenShift (Validated Patterns)](docs/source/deployment/validated-patterns.md)**: Secrets, overlay, Argo CD, and troubleshooting for this deployment
 - **[Development and Contributing](docs/source/contributing/index.md)**: Setup, testing, PR workflow, sign-off/DCO
 - **[Tutorial Notebooks](docs/notebooks/)**: Getting started overview, deeper dive, and customization notebooks
 - **[Architecture](docs/source/architecture/overview.md)**: Component details and data flow
@@ -481,8 +646,9 @@ For development, contribution, and documentation, refer to:
 - **[Profiling and Cost Analysis](docs/source/profiling/index.md)**: Generate tokenomics and latency reports from Relay ATOF traces
 - **[Docs index](docs/README.md)**: Full documentation list and component docs
 - **[Changelog](docs/source/resources/changelog.md)**: Version history and changes
+- **[Validated Patterns](https://validatedpatterns.io/learn/)**: GitOps framework used by this repository
 
-## Roadmap
+### Roadmap
 
 The checkboxes below track implementation in the current branch; a checked item does not by itself
 indicate availability in a published release.
@@ -501,7 +667,7 @@ indicate availability in a published release.
 - [ ] **Multimedia Output:** Embed audio, video, and images directly into reports.
 - [ ] **Voice-to-Text Input:** Integrate [NVIDIA Riva](https://developer.nvidia.com/riva) for hands-free accessibility.
 
-## Security Considerations
+### Security Considerations
 
 - The AI-Q Blueprint is shared as a reference and is provided "as is". The security in the production environment is the responsibility of the end users deploying it. When deploying in a production environment, please have security experts review any potential risks and threats; define the trust boundaries, implement logging and monitoring capabilities, secure the communication channels, integrate AuthN & AuthZ with appropriate access controls, keep the deployment up to date, ensure the containers/source code are secure and free of known vulnerabilities.
 - A robust frontend that handles AuthN & AuthZ is highly recommended. Missing AuthN & AuthZ will result in ungated access to customer models if directly exposed e.g. the internet, resulting in either cost to the customer, resource exhaustion, or denial of service.
@@ -514,6 +680,9 @@ indicate availability in a published release.
 - The end users are responsible for ensuring that OSS packages used by the developer blueprint are current.
 - The built-in workflow and agent logger paths redact raw prompts, tool payloads, and model completions. Enabled source adapters, external middleware, model and tool providers, tracing exporters, and reverse proxies can have separate request-logging and retention behavior; audit and configure every enabled component independently, and keep production logs access-controlled.
 
+## Test Plan
+
+GOTO: [OpenShift (Validated Patterns)](docs/source/deployment/validated-patterns.md)
 
 ## License
 

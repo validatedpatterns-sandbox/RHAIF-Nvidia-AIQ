@@ -1,0 +1,131 @@
+# OpenAI-compatible profile for Red Hat MaaS / LiteLLM Granite endpoints.
+#
+# GitOps source for ConfigMap aiq-maas-config (Validated Patterns overlay).
+# Credentials and endpoint URL come from Secret aiq-credentials on the cluster:
+#   OPENAI_API_KEY, AIQ_INFERENCE_BASE_URL, MAAS_MODEL_NAME
+#
+# Experimental: granite-3-2-8b-instruct is smaller than the shipped Nemotron
+# profiles; deep research and tool-calling may be limited until validated.
+
+general:
+  use_uvloop: true
+  telemetry:
+    logging:
+      console:
+        _type: console
+        level: INFO
+
+  front_end:
+    _type: aiq_api
+    runner_class: aiq_api.plugin.AIQAPIWorker
+    db_url: ${NAT_JOB_STORE_DB_URL:-sqlite+aiosqlite:///./jobs.db}
+    expiry_seconds: 86400
+    cors:
+      allow_origin_regex: 'http://localhost(:\d+)?|http://127.0.0.1(:\d+)?'
+      allow_methods:
+        - GET
+        - POST
+        - DELETE
+        - OPTIONS
+      allow_headers:
+        - "*"
+      allow_credentials: true
+      expose_headers:
+        - "*"
+
+llms:
+  granite_intent_llm:
+    _type: openai
+    model_name: ${MAAS_MODEL_NAME}
+    base_url: ${AIQ_INFERENCE_BASE_URL}
+    api_key: ${OPENAI_API_KEY}
+    temperature: 0.1
+    max_tokens: 1024
+    num_retries: 3
+    parallel_tool_calls: false
+
+  granite_agent_llm:
+    _type: openai
+    model_name: ${MAAS_MODEL_NAME}
+    base_url: ${AIQ_INFERENCE_BASE_URL}
+    api_key: ${OPENAI_API_KEY}
+    temperature: 0.2
+    max_tokens: 8192
+    num_retries: 3
+    parallel_tool_calls: false
+
+  granite_deep_llm:
+    _type: openai
+    model_name: ${MAAS_MODEL_NAME}
+    base_url: ${AIQ_INFERENCE_BASE_URL}
+    api_key: ${OPENAI_API_KEY}
+    temperature: 0.2
+    max_tokens: 8192
+    num_retries: 3
+    parallel_tool_calls: false
+
+  granite_writer_llm:
+    _type: openai
+    model_name: ${MAAS_MODEL_NAME}
+    base_url: ${AIQ_INFERENCE_BASE_URL}
+    api_key: ${OPENAI_API_KEY}
+    temperature: 0.2
+    max_tokens: 8192
+    num_retries: 3
+    parallel_tool_calls: false
+
+functions:
+  data_sources:
+    _type: data_source_registry
+    sources:
+      - id: web_search
+        name: "Web Search"
+        description: "Search the web for real-time information."
+        tools:
+          - web_search_tool
+          - advanced_web_search_tool
+
+  web_search_tool:
+    _type: tavily_web_search
+    max_results: 5
+    max_content_length: 1000
+
+  advanced_web_search_tool:
+    _type: tavily_web_search
+    max_results: 2
+    advanced_search: true
+
+  intent_classifier:
+    _type: intent_classifier
+    llm: granite_intent_llm
+
+  clarifier_agent:
+    _type: clarifier_agent
+    llm: granite_deep_llm
+    max_turns: 3
+    log_response_max_chars: 2000
+
+  shallow_research_agent:
+    _type: shallow_research_agent
+    llm: granite_agent_llm
+    exclude_tools:
+      - advanced_web_search_tool
+    max_llm_turns: 10
+    max_tool_iterations: 5
+
+  deep_research_agent:
+    _type: deep_research_agent
+    enable_citation_verification: true
+    orchestrator_llm: granite_deep_llm
+    source_router_llm: granite_deep_llm
+    researcher_llm: granite_deep_llm
+    planner_llm: granite_deep_llm
+    writer_llm: granite_writer_llm
+    exclude_tools:
+      - web_search_tool
+
+workflow:
+  _type: chat_deepresearcher_agent
+  enable_escalation: true
+  enable_clarifier: true
+  checkpoint_db: ${AIQ_CHECKPOINT_DB:-./checkpoints.db}

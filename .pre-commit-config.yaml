@@ -36,7 +36,7 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=1024]
       - id: check-yaml
-        exclude: ^deploy/helm/helm-charts-k8s/.*/templates/.*\.ya?ml$
+        exclude: ^(deploy/helm/helm-charts-k8s/.*/templates/.*\.ya?ml$|charts/.*/templates/.*\.ya?ml$)
       - id: end-of-file-fixer
         exclude: ^skills/[^/]+/skill\.oms\.sig$
       - id: trailing-whitespace
