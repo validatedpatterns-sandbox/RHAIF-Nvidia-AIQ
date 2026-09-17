@@ -107,7 +107,7 @@ From the repository root, on the branch Argo CD should track:
 ```text
 wave -1: aiq-workflow-config (workflow ConfigMap)
 wave 10:  nfd-config, nvidia-config (GPU operator enablement)
-wave 15:  openshift-ai (DataScienceCluster / KServe)
+wave 15:  openshift-ai (DataScienceCluster, KServe serving only)
 wave 20:  vllm-inference-service (Nemotron Lightning on vLLM)
 wave 30:  aiq (umbrella Helm chart)
 ```
@@ -133,6 +133,10 @@ Fresh installs can ignore this section.
 ## Validate
 
 ### Infrastructure
+
+The DataScienceCluster enables KServe with headed RawDeployment only. Dashboard, workbenches, data
+science pipelines, Kueue, and Ray stay Removed. The pattern does not install the OpenShift Serverless
+operator.
 
 ```bash
 oc get csv -n redhat-ods-operator
