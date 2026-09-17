@@ -59,9 +59,10 @@ vllmServingRuntime:
     - '-m'
     - vllm.entrypoints.openai.api_server
 
+  # Nemotron 3.5 Lightning (nemotron_h) needs vLLM >= 0.27; RHOAI 2.20 image is too old.
   image:
-    repository: quay.io/modh/vllm
-    tag: rhoai-2.20-cuda
+    repository: vllm/vllm-openai
+    tag: v0.27.1
 
   port: 8080
 
