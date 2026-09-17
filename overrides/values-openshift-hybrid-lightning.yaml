@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Hybrid Lightning profile: in-cluster vLLM (intent + shallow) and NVIDIA API
+# Catalog Ultra (clarifier + deep). Pair with values-prod.yaml.
+
+aiq:
+  apps:
+    backend:
+      env:
+        CONFIG_FILE: /app/configs/config_hybrid_lightning.yml
+      volumeMounts:
+        - name: workflow-config
+          mountPath: /app/configs/config_hybrid_lightning.yml
+          subPath: config_hybrid_lightning.yml
+          readOnly: true
+      volumes:
+        - name: postgres-init
+          configMap:
+            name: aiq-postgres-init
+        - name: workflow-config
+          configMap:
+            name: aiq-workflow-config
