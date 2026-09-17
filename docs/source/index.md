@@ -110,6 +110,7 @@ Observability <./deployment/observability.md>
 Production <./deployment/production.md>
 OpenShell <./deployment/openshell.md>
 Kubernetes <./deployment/kubernetes.md>
+OpenShift Validated Patterns <./deployment/validated-patterns.md>
 Amazon OpenSearch Serverless <./deployment/aws-opensearch-serverless.md>
 ```
 

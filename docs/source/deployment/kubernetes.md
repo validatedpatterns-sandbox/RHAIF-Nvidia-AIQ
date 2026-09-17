@@ -358,3 +358,7 @@ kubectl describe pvc aiq-postgres-data -n ns-aiq
 | Pod stuck in `Pending` | Insufficient cluster resources or PVC not bound | Check `kubectl describe pod <pod>` for scheduling errors. Verify PVC status with `kubectl get pvc -n ns-aiq`. |
 | FRAG mode: RAG connection refused | RAG service not reachable | Verify RAG pods are running and service DNS resolves. Test with `kubectl exec` into the backend pod and `curl` the RAG URL. |
 | Health check fails | Backend not fully started | Wait for init containers to complete. Check `kubectl logs <pod> -c db-init -n ns-aiq` for database init issues. |
+
+## OpenShift GitOps
+
+For an OpenShift cluster, prefer the Validated Patterns path in [OpenShift (Validated Patterns)](./validated-patterns.md) instead of a long-lived manual `helm install`.

@@ -202,6 +202,22 @@ Uses base name from imageRepository instead of full project name for consistency
 {{- end }}
 
 {{/*
+Optional OpenShift Route hostname.
+Uses route.host when set to a real hostname; omits localhost so OpenShift
+can assign a generated hostname.
+*/}}
+{{- define "aiq.routeHostname" -}}
+{{- $appConfig := index . 2 -}}
+{{- $appRoute := $appConfig.route | default dict -}}
+{{- if eq (kindOf $appRoute) "map" -}}
+{{- $host := $appRoute.host | default "" -}}
+{{- if and $host (ne $host "localhost") -}}
+{{- $host -}}
+{{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Merge app config with defaults
 Usage: include "aiq.mergeAppDefaults" (list $ $appName $appConfig)
 Returns: merged config with defaults applied

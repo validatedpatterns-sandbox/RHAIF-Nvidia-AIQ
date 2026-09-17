@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+apiVersion: v2
+name: aiq-maas-config
+description: ConfigMap for the MaaS Granite workflow YAML (not present in NGC images)
+type: application
+version: 0.1.0
+appVersion: "2.2.0"

@@ -11,6 +11,7 @@ The AI-Q blueprint supports multiple deployment methods. Choose the one that bes
 |--------|----------|---------------|
 | [Docker Compose](./docker-compose.md) | Local development, team demos, single-node deployments | Docker Engine, Docker Compose v2 |
 | [Kubernetes (Helm)](./kubernetes.md) | Multi-node clusters, production | Kubernetes cluster, Helm v3.x |
+| [OpenShift (Validated Patterns)](./validated-patterns.md) | OpenShift GitOps | OpenShift, Podman, `oc` |
 | Manual (no containers) | Development and debugging | Python 3.11--3.13, system dependencies (refer to [Installation](../get-started/installation.md)) |
 
 ## Published Release Artifacts
@@ -36,6 +37,8 @@ All containerized deployments run the same three services:
 - **[Docker Compose](./docker-compose.md)** -- Full Docker Compose reference covering environment setup, the standard LlamaIndex stack, Foundational RAG (FRAG) integration, database configuration, and troubleshooting.
 
 - **[Kubernetes (Helm)](./kubernetes.md)** -- Helm chart deployment for Kubernetes clusters, including NGC image pull secrets, configuration switching, FRAG integration, and troubleshooting.
+
+- **[OpenShift (Validated Patterns)](./validated-patterns.md)** -- GitOps install via [patternizer](https://validatedpatterns.io/learn/creating-patterns-with-patternizer/) and `./pattern.sh make install`.
 
 - **[Amazon OpenSearch Serverless](./aws-opensearch-serverless.md)** -- EKS and OpenSearch Serverless deployment notes for the built-in OpenSearch knowledge backend.
 

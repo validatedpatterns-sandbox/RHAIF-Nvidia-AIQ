@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Single-cluster Validated Pattern (no ACM, no Vault, no ESO).
+# Destination project is aiq. make load-secrets writes Secret aiq-credentials.
+clusterGroup:
+  name: prod
+  namespaces:
+    aiq:
+      operatorGroup: false
+  subscriptions: {}
+  applications:
+    aiq-maas-config:
+      name: aiq-maas-config
+      namespace: aiq
+      path: charts/aiq-maas-config
+      annotations:
+        argocd.argoproj.io/sync-wave: "-1"
+    aiq:
+      name: aiq
+      namespace: aiq
+      path: deploy/helm/deployment-k8s
+      extraValueFiles:
+        - /overrides/values-aiq-openshift.yaml
