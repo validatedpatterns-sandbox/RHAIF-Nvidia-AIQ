@@ -30,7 +30,7 @@ NFD_CHART = REPO_ROOT / "charts" / "all" / "nfd-config"
 NVIDIA_CONFIG_CHART = REPO_ROOT / "charts" / "all" / "nvidia-gpu-config"
 RHODS_CHART = REPO_ROOT / "charts" / "all" / "rhods"
 DEFAULT_LIGHTNING_BASE_URL = (
-    "http://vllm-inference-service-predictor.aiq-inference.svc.cluster.local:8080/v1"
+    "http://vllm-inference-service-predictor.aiq-inference.svc.cluster.local/v1"
 )
 VALUES_PROD = REPO_ROOT / "values-prod.yaml"
 VALUES_GLOBAL = REPO_ROOT / "values-global.yaml"

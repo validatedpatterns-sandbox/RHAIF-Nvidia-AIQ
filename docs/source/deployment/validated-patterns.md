@@ -157,7 +157,7 @@ oc wait --for=condition=Ready inferenceservice/vllm-inference-service -n aiq-inf
 From a debug pod in `aiq`, confirm the vLLM OpenAI API responds:
 
 ```bash
-curl -sf http://vllm-inference-service-predictor.aiq-inference.svc.cluster.local:8080/v1/models
+curl -sf http://vllm-inference-service-predictor.aiq-inference.svc.cluster.local/v1/models
 ```
 
 If shallow research fails while `aiq-backend` is healthy, check that the InferenceService above is `Ready`
