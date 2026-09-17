@@ -53,6 +53,10 @@ vllmServingRuntime:
     - "--gpu-memory-utilization"
     - "0.92"
     - "--enforce-eager"
+    # Shallow researcher uses OpenAI tool_choice=auto; RHOAI vLLM lacks qwen3_coder.
+    - "--enable-auto-tool-choice"
+    - "--tool-call-parser"
+    - "pythonic"
 
   command:
     - python
