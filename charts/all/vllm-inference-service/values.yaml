@@ -43,8 +43,9 @@ vllmServingRuntime:
     argocd.argoproj.io/sync-wave: "20"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 
-  # Bootstrap profile for a single NVIDIA L4 (g6.2xlarge). Quantization is read from
-  # config.json on the NVFP4 checkpoint — do not pass --quantization. Re-tune in TODO.md.
+  # Bootstrap profile for a single NVIDIA GPU (g6/g7e). NVFP4 quantization comes from
+  # config.json on the checkpoint — do not pass --quantization.
+  # Args align with the HF/NVIDIA Nemotron 3.5 Lightning NVFP4 vLLM recipe.
   args:
     - "--model=/cache/models"
     - "--distributed-executor-backend=mp"
@@ -52,8 +53,13 @@ vllmServingRuntime:
     - "--dtype=auto"
     - "--gpu-memory-utilization"
     - "0.92"
-    - "--enforce-eager"
-    # Nemotron Lightning tool calls (shallow_researcher bind_tools).
+    - "--moe-backend=marlin"
+    - "--kv-cache-dtype=fp8"
+    - "--enable-prefix-caching"
+    - "--mamba-backend=flashinfer"
+    - "--mamba-cache-mode=align"
+    - "--reasoning-parser=nemotron_v3"
+    # qwen3_coder is NVIDIA's vLLM tool parser for Nemotron (not a Qwen model).
     - "--enable-auto-tool-choice"
     - "--tool-call-parser"
     - "qwen3_coder"
