@@ -55,7 +55,7 @@ vllmServingRuntime:
     - "--enforce-eager"
 
   command:
-    - python
+    - python3
     - '-m'
     - vllm.entrypoints.openai.api_server
 
