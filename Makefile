@@ -6,14 +6,14 @@ include Makefile-common
 
 # Phase 0 GPU worker provisioning (mirrors validatedpatterns/rag-llm-gitops).
 GPU_INSTANCE_TYPE ?= g6.2xlarge
-GPU_REPLICAS ?= 2
+GPU_REPLICAS ?= 1
 GPU_VM_SIZE ?= Standard_NC8as_T4_v3
 OVERRIDE_ZONE ?=
 
 .PHONY: create-gpu-machineset
-create-gpu-machineset: ## Create AWS GPU MachineSet (overrides: GPU_INSTANCE_TYPE, GPU_REPLICAS)
+create-gpu-machineset: ## Create AWS GPU MachineSet (overrides: GPU_INSTANCE_TYPE, GPU_REPLICAS, OVERRIDE_ZONE)
 	ansible-playbook ansible/playbooks/create-gpu-machineset.yaml \
-		-e "gpu_instance_type=$(GPU_INSTANCE_TYPE) gpu_replicas=$(GPU_REPLICAS)"
+		-e "gpu_instance_type=$(GPU_INSTANCE_TYPE) gpu_replicas=$(GPU_REPLICAS) override_zone=$(OVERRIDE_ZONE)"
 
 .PHONY: create-gpu-machineset-azure
 create-gpu-machineset-azure: ## Create Azure GPU MachineSet (overrides: GPU_VM_SIZE, GPU_REPLICAS, OVERRIDE_ZONE)
