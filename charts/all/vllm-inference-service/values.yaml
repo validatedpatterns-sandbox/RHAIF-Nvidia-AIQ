@@ -1,0 +1,80 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Model IDs come from values-global.yaml global.model.{hfRepo,servedName}.
+
+modelCache:
+  enabled: true
+  size: 80Gi
+
+vllmInferenceService:
+  annotations:
+    openshift.io/display-name: vllm-inference
+    serving.kserve.io/deploymentMode: Standard
+    argocd.argoproj.io/sync-wave: "20"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+
+  predictor:
+    annotations:
+      serving.knative.dev/progress-deadline: 30m
+    replicas: 1
+    resources:
+      limits:
+        nvidia.com/gpu: '1'
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: nvidia.com/gpu.present
+                  operator: In
+                  values: ["true"]
+
+  tolerations:
+    - effect: NoSchedule
+      key: odh-notebook
+      operator: Exists
+
+vllmServingRuntime:
+  annotations:
+    opendatahub.io/accelerator-name: nvidia-gpu
+    opendatahub.io/apiProtocol: REST
+    opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
+    openshift.io/display-name: vllm-inference
+    argocd.argoproj.io/sync-wave: "20"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+
+  # Bootstrap profile for a single NVIDIA L4 (g6.2xlarge). Quantization is read from
+  # config.json on the NVFP4 checkpoint — do not pass --quantization. Re-tune in TODO.md.
+  args:
+    - "--model=/cache/models"
+    - "--distributed-executor-backend=mp"
+    - "--max-model-len=8192"
+    - "--dtype=auto"
+    - "--gpu-memory-utilization"
+    - "0.92"
+    - "--enforce-eager"
+    - "--enable-auto-tool-choice"
+    - "--tool-call-parser"
+    - "qwen3_coder"
+    - "--reasoning-parser"
+    - "nemotron_v3"
+
+  command:
+    - python
+    - '-m'
+    - vllm.entrypoints.openai.api_server
+
+  image:
+    repository: quay.io/modh/vllm
+    tag: rhoai-2.20-cuda
+
+  port: 8080
+
+  initContainer:
+    image: registry.access.redhat.com/ubi9/python-39
+
+route:
+  enabled: false
+
+hardwareProfile:
+  enabled: false
