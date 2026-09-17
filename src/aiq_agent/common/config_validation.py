@@ -31,13 +31,20 @@ LLM_API_KEY_MAP = {
 }
 
 
+def _parse_env_var_reference(value: str) -> tuple[str | None, str | None]:
+    """Parse ${VAR_NAME} or ${VAR_NAME:-default} into (name, default)."""
+    if not isinstance(value, str):
+        return None, None
+    match = re.match(r"\$\{([^:}]+)(?::-([^}]*))?\}", value)
+    if not match:
+        return None, None
+    return match.group(1), match.group(2)
+
+
 def _extract_env_var(value: str) -> str | None:
-    """Extract environment variable name from ${VAR_NAME} syntax."""
-    if isinstance(value, str):
-        match = re.match(r"\$\{([^}]+)\}", value)
-        if match:
-            return match.group(1)
-    return None
+    """Extract environment variable name from ${VAR_NAME} or ${VAR_NAME:-default} syntax."""
+    env_var, _default = _parse_env_var_reference(value)
+    return env_var
 
 
 def _get_llm_api_key_requirements(llm_config: dict[str, Any]) -> list[str]:
@@ -56,9 +63,11 @@ def _get_llm_api_key_requirements(llm_config: dict[str, Any]) -> list[str]:
     # If api_key is explicitly set in config, check if it references an env var
     api_key_config = llm_config.get("api_key")
     if api_key_config:
-        env_var = _extract_env_var(api_key_config)
+        env_var, default = _parse_env_var_reference(api_key_config)
         if env_var:
-            # If config specifies an env var, that's the required key
+            # ${VAR:-default} does not require the env var at validation time.
+            if default is not None:
+                return []
             return [env_var]
         # If api_key is a literal value, no env var needed
         return []
