@@ -73,7 +73,7 @@ The NVIDIA AI-Q Blueprint is a deployable research backend built on the [NVIDIA 
 
 This repository deploys AI-Q on [Red Hat OpenShift](https://www.redhat.com/en/technologies/cloud-computing/openshift) through the [Validated Patterns](https://validatedpatterns.io/) GitOps framework. `./pattern.sh make install` installs the Validated Patterns Operator and OpenShift GitOps, then Argo CD syncs the AI-Q Helm chart into the `aiq` namespace.
 
-The path is **single-cluster only**: no ACM hub/spoke and no HashiCorp Vault / External Secrets Operator. Secrets use the Validated Patterns `none` backend, which writes Kubernetes Secret `aiq-credentials` from a local file. The default overlay targets an OpenAI-compatible [OpenShift AI Model as a Service (MaaS)](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/) Granite endpoint; no cluster GPU nodes are required for that profile.
+The path is **single-cluster only**: no ACM hub/spoke and no HashiCorp Vault / External Secrets Operator. Secrets use the Validated Patterns `none` backend, which writes Kubernetes Secret `aiq-credentials` from a local file. The default profile self-hosts Nemotron 3.5 Lightning on-cluster with vLLM and uses the NVIDIA API Catalog for Nemotron 3 Ultra roles.
 
 ## What's New
 
@@ -147,7 +147,8 @@ This project is for:
 - [Podman](https://podman.io/) (the `./pattern.sh` wrapper runs make targets in the Validated Patterns utility container)
 - An OpenShift cluster and `oc` logged in with enough privilege to install operators
 - Git, and a remote Argo CD can clone (this repository or your fork) with the branch pushed
-- A reachable OpenAI-compatible LLM endpoint (`AIQ_INFERENCE_BASE_URL`) and model name (`MAAS_MODEL_NAME`) in `~/values-secret-aiq.yaml`
+- `NVIDIA_API_KEY` in `~/values-secret-aiq.yaml` for Nemotron 3 Ultra roles
+- One GPU worker provisioned before install (see [GPU_provisioning.md](GPU_provisioning.md))
 - Optional: `TAVILY_API_KEY` for web research in the cluster overlay
 
 Default destination namespace is `aiq`. The VP install path does not require local Python or Node.js.
@@ -170,9 +171,9 @@ If these optional API keys are not provided, the agent continues to operate with
 
 ## Hardware Requirements
 
-When using [NVIDIA API Catalog](https://build.nvidia.com/) (the default), inference runs on NVIDIA-hosted infrastructure and there are no local GPU requirements. The hardware references below apply only when self-hosting models via [NVIDIA NIM](https://docs.nvidia.com/nim/).
+The OpenShift Validated Pattern (`values-prod.yaml`) deploys the **hybrid Lightning** profile: self-hosted Nemotron 3.5 Lightning on-cluster (requires one GPU worker) plus Nemotron 3 Ultra on the NVIDIA API Catalog. Local development and Docker Compose can use [NVIDIA API Catalog](https://build.nvidia.com/) without cluster GPUs.
 
-The default Validated Pattern overlay uses an external MaaS Granite endpoint (`AIQ_INFERENCE_BASE_URL`); **no GPU nodes are required** on the OpenShift cluster for that profile.
+The self-hosted hardware references below apply to the in-cluster Lightning path and to optional [NVIDIA NIM](https://docs.nvidia.com/nim/) deployments. Ultra roles on the Validated Pattern always call the NVIDIA API Catalog.
 
 | Component | Default Model | Self-Hosted Hardware Reference |
 |-----------|---------------|-------------------------------|
@@ -202,18 +203,17 @@ Each agent can be run individually or as part of the orchestrated workflow. For 
 _Figure 1. NVIDIA AI-Q research-agent architecture._
 
 On OpenShift, Argo CD applies the unchanged application chart at `deploy/helm/deployment-k8s` plus
-`overrides/values-aiq-openshift.yaml` (MaaS Granite config mount, Postgres PVC on the cluster default
-StorageClass, nginx Ingress disabled, OpenShift Route enabled for the frontend). See
-[OpenShift (Validated Patterns)](docs/source/deployment/validated-patterns.md) for the GitOps overlay.
+`overrides/values-openshift-base.yaml` and `overrides/values-openshift-hybrid-lightning.yaml`. See
+`overrides/README.md` and [OpenShift (Validated Patterns)](docs/source/deployment/validated-patterns.md).
 
 ## Components deployed
 
 Argo CD syncs two applications into namespace `aiq`:
 
-- **aiq-backend** — NVIDIA AI-Q agent (`nvcr.io/nvidia/blueprint/aiq-agent`). Serves the research API on port 8000. The MaaS Granite workflow YAML is mounted from ConfigMap `aiq-maas-config`.
+- **aiq-backend** — NVIDIA AI-Q agent (`nvcr.io/nvidia/blueprint/aiq-agent`). Serves the research API on port 8000. Workflow YAML is mounted from ConfigMap `aiq-workflow-config`.
 - **aiq-frontend** — Web UI (`nvcr.io/nvidia/blueprint/aiq-frontend`) on port 3000. Exposed via an OpenShift Route (`aiq-frontend`).
 - **aiq-postgres** — In-cluster PostgreSQL with a PVC for jobs and checkpoints.
-- **aiq-maas-config** — ConfigMap sourced from `charts/aiq-maas-config/files/config_maas_granite.yml`. The NGC backend image does not contain this overlay file.
+- **aiq-workflow-config** — ConfigMap with `config_hybrid_lightning.yml`. The NGC backend image does not contain this overlay file.
 
 `make install` also installs the Validated Patterns Operator, OpenShift GitOps (`vp-gitops`), and a `Pattern` custom resource. Secret `aiq-credentials` is loaded into `aiq` from `~/values-secret-aiq.yaml`.
 
@@ -238,20 +238,20 @@ cd RHAIF-Nvidia-AIQ
 
 ### Configure secrets
 
-This pattern deploys the MaaS Granite workflow profile out of the box. Copy the secrets template and fill in real values. Do not commit secrets.
+This pattern deploys the hybrid Lightning workflow profile by default. Copy the secrets template and fill in real values. Do not commit secrets.
 
 ```bash
 cp values-secret.yaml.template ~/values-secret-aiq.yaml
 # edit ~/values-secret-aiq.yaml
 ```
 
-Set at minimum: `DB_USER_NAME`, `DB_USER_PASSWORD`, `OPENAI_API_KEY`, `AIQ_INFERENCE_BASE_URL`, `MAAS_MODEL_NAME`. `TAVILY_API_KEY` may be empty for install-only smoke tests. `NVIDIA_API_KEY` is not required for the MaaS Granite profile.
+Set `DB_USER_NAME`, `DB_USER_PASSWORD`, `NVIDIA_API_KEY` (Ultra roles), and optionally `TAVILY_API_KEY`. In-cluster vLLM does not need a real API key.
 
 Secrets use the Validated Patterns `none` backend (not Vault): `./pattern.sh make install` writes Kubernetes Secret `aiq-credentials` in namespace `aiq` from this file. For the full API key matrix used in local development, see [Obtain API Keys](#obtain-api-keys).
 
 ### GPU nodes
 
-The default MaaS Granite overlay does **not** require GPU nodes on the cluster. Skip GPU MachineSet provisioning unless you switch to a self-hosted GPU model profile.
+The hybrid Lightning profile requires one GPU worker before install. See [GPU_provisioning.md](GPU_provisioning.md).
 
 ### Deploy application
 
@@ -278,7 +278,7 @@ Following commands take about 15–20 minutes.
 ./pattern.sh make argo-healthcheck
 ```
 
-`make install` installs the Validated Patterns Operator, OpenShift GitOps, the `Pattern` resource, and loads `aiq-credentials`. Argo CD then syncs `aiq-maas-config` and `aiq`.
+`make install` installs the Validated Patterns Operator, OpenShift GitOps, the `Pattern` resource, and loads `aiq-credentials`. Argo CD then syncs `aiq-workflow-config` and `aiq`.
 
 ### 1: Verify the installation
 
@@ -332,7 +332,7 @@ curl -sf http://127.0.0.1:8000/generate \
   -d '{"query": "Reply with exactly: OK"}'
 ```
 
-A `200` response with assistant content confirms MaaS wiring beyond the UI.
+A `200` response with assistant content confirms backend wiring beyond the UI.
 
 ### 5: Async deep research (optional)
 
@@ -403,7 +403,7 @@ uv pip install -e "./sources/knowledge_layer[llamaindex,foundational_rag]"
 | Nimble     | `NIMBLE_API_KEY`     | Configurable web search   | No (required only when Nimble search is configured)         |
 | You.com    | `YDC_API_KEY`        | Web, contents, and research APIs | No (required only when You.com tools are configured)   |
 | Paper search | `SERPER_API_KEY`, `SERPAPI_API_KEY`, or `SEARCHAPI_API_KEY` | Academic paper search | No (choose one matching the configured provider) |
-| MaaS (VP)  | `OPENAI_API_KEY`, `AIQ_INFERENCE_BASE_URL`, `MAAS_MODEL_NAME` | OpenAI-compatible cluster endpoint | Yes for OpenShift overlay |
+| vLLM (VP) | `VLLM_API_KEY` (optional) | In-cluster vLLM placeholder token | No (default baked into workflow config) |
 
 ##### Obtain an NVIDIA API Key
 
@@ -471,7 +471,7 @@ The `configs/` directory holds YAML workflow configs that define agents, tools, 
 | `config_domain_routing_and_skills.yml` | Nemotron 3 Ultra; Gemma 4 summary | Direct deep-research profile with domain routing, DuckDuckGo news, Polymarket, enabled Serper paper search, LlamaIndex, built-in skills, and a fresh per-job Modal sandbox. |
 | `config_openshell.yml` | Nemotron 3.5 Lightning; Nemotron 3 Ultra; Gemma 4 summary | Experimental web/API skills profile with artifact capture, fail-closed policy attestation, and one OpenShell sandbox per deep-research job. |
 | `config_mcp.yml` | Nemotron 3.5 Lightning; Nemotron 3 Ultra | Standalone MCP server. Public NIM + Tavily research with PostgreSQL-backed stateless submit/poll/report. Requires `NVIDIA_API_KEY`, `TAVILY_API_KEY`, and `AIQ_CHECKPOINT_DB`. |
-| `charts/aiq-maas-config/files/config_maas_granite.yml` | MaaS Granite (VP default) | OpenShift Validated Pattern overlay; mounted as ConfigMap `aiq-maas-config` in cluster (not via `CONFIG_FILE` locally). |
+| `charts/aiq-workflow-config/files/config_hybrid_lightning.yml` | Hybrid Lightning (VP) | OpenShift Validated Pattern overlay; mounted as ConfigMap `aiq-workflow-config` in cluster (not via `CONFIG_FILE` locally). |
 
 ### Ways to Run the Agents
 

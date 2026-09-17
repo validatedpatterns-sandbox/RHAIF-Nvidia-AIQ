@@ -10,6 +10,12 @@ GPU_REPLICAS ?= 2
 GPU_VM_SIZE ?= Standard_NC8as_T4_v3
 OVERRIDE_ZONE ?=
 
+.PHONY: ensure-pattern-namespaces
+ensure-pattern-namespaces: ## Create aiq and aiq-inference namespaces before load-secrets
+	oc create namespace aiq --dry-run=client -o yaml | oc apply -f -
+	oc create namespace aiq-inference --dry-run=client -o yaml | oc apply -f -
+	oc label namespace aiq-inference opendatahub.io/dashboard=true modelmesh-enabled=false --overwrite
+
 .PHONY: create-gpu-machineset
 create-gpu-machineset: ## Create AWS GPU MachineSet (overrides: GPU_INSTANCE_TYPE, GPU_REPLICAS)
 	ansible-playbook ansible/playbooks/create-gpu-machineset.yaml \
@@ -19,3 +25,7 @@ create-gpu-machineset: ## Create AWS GPU MachineSet (overrides: GPU_INSTANCE_TYP
 create-gpu-machineset-azure: ## Create Azure GPU MachineSet (overrides: GPU_VM_SIZE, GPU_REPLICAS, OVERRIDE_ZONE)
 	ansible-playbook ansible/playbooks/create-gpu-machineset-azure.yaml \
 		-e "gpu_vm_size=$(GPU_VM_SIZE) gpu_replicas=$(GPU_REPLICAS) override_zone=$(OVERRIDE_ZONE)"
+
+# Ensure workload namespaces exist before install/load-secrets write Secrets into them.
+pattern-install: ensure-pattern-namespaces
+load-secrets: ensure-pattern-namespaces
