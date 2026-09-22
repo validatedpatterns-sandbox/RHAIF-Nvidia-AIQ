@@ -339,11 +339,11 @@ def test_eso_bindings_render_identity_external_secrets():
             "name": "vault-backend",
             "kind": "ClusterSecretStore",
         }
-        assert secret["spec"]["target"] == {
-            "name": release_name,
-            "creationPolicy": "Merge",
-            "deletionPolicy": "Retain",
-        }
+            assert secret["spec"]["target"] == {
+                "name": release_name,
+                "creationPolicy": "Owner",
+                "deletionPolicy": "Retain",
+            }
         assert secret["spec"]["dataFrom"] == [
             {"extract": {"key": f"secret/data/hub/{release_name}"}}
         ]
