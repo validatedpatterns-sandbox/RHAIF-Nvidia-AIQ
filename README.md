@@ -70,5 +70,6 @@ tests/deploy/                           Overlay and chart render tests
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE). AI-Q containers and upstream blueprint code
-remain under their NVIDIA licenses.
+This Validated Pattern wrapper is copyright Red Hat, Inc., and licensed under
+Apache-2.0. See [LICENSE](LICENSE). AI-Q application source, NGC containers, and
+upstream blueprint code remain under their NVIDIA licenses.

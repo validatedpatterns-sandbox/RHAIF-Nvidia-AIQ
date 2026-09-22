@@ -1,11 +1,13 @@
 <!--
-SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-FileCopyrightText: Copyright (c) 2026, Red Hat, Inc.
 SPDX-License-Identifier: Apache-2.0
 -->
 
 # OpenShift (Validated Patterns)
 
-Deploy AI-Q on OpenShift through the [Validated Patterns](https://validatedpatterns.io/learn/) GitOps framework. Scaffolding was generated with [patternizer](https://validatedpatterns.io/learn/creating-patterns-with-patternizer/). This path is single-cluster only: no ACM hub/spoke and no HashiCorp Vault / External Secrets Operator. Secrets use the Validated Patterns `none` backend, which writes Kubernetes Secrets from a local file.
+Red Hat authored this Validated Pattern wrapper for deploying AI-Q on OpenShift
+through the [Validated Patterns](https://validatedpatterns.io/learn/) GitOps framework.
+Scaffolding was generated with [patternizer](https://validatedpatterns.io/learn/creating-patterns-with-patternizer/). This path is single-cluster only: no ACM hub/spoke and no HashiCorp Vault / External Secrets Operator. Secrets use the Validated Patterns `none` backend, which writes Kubernetes Secrets from a local file.
 
 The pattern ships the AI-Q umbrella Helm chart at `charts/aiq2-web` (NGC `aiq-agent` / `aiq-frontend` images) and applies OpenShift value overlays under `overrides/` (see `overrides/README.md`). Blueprint application source lives in the [NVIDIA AI-Q repository](https://github.com/NVIDIA-AI-Blueprints/aiq), not in this pattern repo.
 
