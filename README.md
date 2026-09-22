@@ -35,10 +35,9 @@ NVIDIA API Catalog (Nemotron 3 Ultra).
 
 # Secrets (do not commit)
 cp values-secret.yaml.template ~/values-secret-aiq.yaml
-# edit NVIDIA_API_KEY and other fields
+# Set NVIDIA_API_KEY. Leave DB_USER_PASSWORD unset so Vault generates it once.
+# load-secrets writes Vault KV at secret/data/hub/<secret name>.
 
-./pattern.sh make ensure-pattern-namespaces
-./pattern.sh make load-secrets
 ./pattern.sh make install
 ./pattern.sh make argo-healthcheck
 ```
@@ -59,7 +58,8 @@ GPU MachineSet details: [GPU_provisioning.md](GPU_provisioning.md).
 
 ```text
 values-global.yaml / values-prod.yaml   Pattern + cluster GitOps config
-values-secret.yaml.template             Secret field template
+values-secret.yaml.template             Secret field template (Vault backing store)
+charts/all/eso-bindings                 ExternalSecret identity (release name = Vault KV)
 charts/all/                             NFD, GPU Operator, RHOAI, vLLM
 charts/aiq-workflow-config/             Hybrid Lightning workflow ConfigMap
 charts/aiq2-web/                        AI-Q umbrella Helm chart (relocated)

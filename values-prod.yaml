@@ -4,6 +4,7 @@
 # Hybrid Lightning profile (GPU stack + in-cluster vLLM + NVIDIA API Ultra).
 clusterGroup:
   name: prod
+  isHubCluster: true
   namespaces:
     aiq:
       operatorGroup: false
@@ -12,6 +13,8 @@ clusterGroup:
       labels:
         opendatahub.io/dashboard: "true"
         modelmesh-enabled: "false"
+    vault: {}
+    golang-external-secrets: {}
     redhat-ods-operator:
       operatorGroup: true
       targetNamespaces: []
@@ -29,6 +32,34 @@ clusterGroup:
       name: rhods-operator
       namespace: redhat-ods-operator
   applications:
+    vault:
+      name: vault
+      namespace: vault
+      chart: hashicorp-vault
+      chartVersion: 0.1.*
+      annotations:
+        argocd.argoproj.io/sync-wave: "-30"
+    golang-external-secrets:
+      name: golang-external-secrets
+      namespace: golang-external-secrets
+      chart: golang-external-secrets
+      chartVersion: 0.1.*
+      annotations:
+        argocd.argoproj.io/sync-wave: "-20"
+    eso-aiq-credentials:
+      name: aiq-credentials
+      namespace: aiq
+      path: charts/all/eso-bindings
+      annotations:
+        argocd.argoproj.io/sync-wave: "5"
+        argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    eso-huggingface-secret:
+      name: huggingface-secret
+      namespace: aiq-inference
+      path: charts/all/eso-bindings
+      annotations:
+        argocd.argoproj.io/sync-wave: "5"
+        argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
     nfd-config:
       name: nfd-config
       namespace: openshift-nfd

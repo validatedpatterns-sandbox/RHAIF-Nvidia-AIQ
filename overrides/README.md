@@ -8,8 +8,8 @@ in `values-prod.yaml`.
 
 | Layer | Files | What it controls |
 |---|---|---|
-| Pattern globals | `values-global.yaml` | Argo CD mode, secret backend, model IDs |
-| Cluster topology | `values-prod.yaml` | Operators, GPU stack, vLLM, and AI-Q Argo applications |
+| Pattern globals | `values-global.yaml` | Argo CD mode, Vault secret backend, model IDs |
+| Cluster topology | `values-prod.yaml` | Operators, Vault, ESO, GPU stack, vLLM, and AI-Q Argo applications |
 | OpenShift overlays | `overrides/values-openshift-*.yaml` | Platform tweaks for the AI-Q umbrella chart (Route, PVC, workflow mount) |
 
 These overlays only adjust how the published AI-Q images run on OpenShift.
@@ -28,4 +28,4 @@ Helm list values replace rather than merge. Always apply base plus the hybrid ov
 - `NVIDIA_API_KEY` — Nemotron 3 Ultra on the NVIDIA API Catalog (clarifier + deep research).
 - In-cluster vLLM (Lightning) does not need a real API key. The workflow config defaults a placeholder token.
 
-See `values-secret.yaml.template` and [validated-patterns.md](../docs/source/deployment/validated-patterns.md).
+Copy `values-secret.yaml.template` to `~/values-secret-aiq.yaml`. `make load-secrets` writes Vault KV under `secret/data/hub/`. See [validated-patterns.md](../docs/source/deployment/validated-patterns.md).

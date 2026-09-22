@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 
 Red Hat authored this Validated Pattern wrapper for deploying AI-Q on OpenShift
 through the [Validated Patterns](https://validatedpatterns.io/learn/) GitOps framework.
-Scaffolding was generated with [patternizer](https://validatedpatterns.io/learn/creating-patterns-with-patternizer/). This path is single-cluster only: no ACM hub/spoke and no HashiCorp Vault / External Secrets Operator. Secrets use the Validated Patterns `none` backend, which writes Kubernetes Secrets from a local file.
+Scaffolding was generated with [patternizer](https://validatedpatterns.io/learn/creating-patterns-with-patternizer/). This path is single-cluster only: no ACM hub/spoke. HashiCorp Vault stores secret values. The External Secrets Operator copies them into Kubernetes Secrets named `aiq-credentials` and `huggingface-secret`.
 
 The pattern ships the AI-Q umbrella Helm chart at `charts/aiq2-web` (NGC `aiq-agent` / `aiq-frontend` images) and applies OpenShift value overlays under `overrides/` (see `overrides/README.md`). Blueprint application source lives in the [NVIDIA AI-Q repository](https://github.com/NVIDIA-AI-Blueprints/aiq), not in this pattern repo.
 
@@ -88,7 +88,7 @@ See [GPU_provisioning.md](https://github.com/validatedpatterns-sandbox/RHAIF-Nvi
 
 The bootstrap profile uses **1× `g6.2xlarge`** (NVIDIA L4, 24 GiB VRAM) with the **NVFP4 Hugging Face checkpoint** (`nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4`). vLLM reads quantization from `config.json` — do not pass `--quantization` manually. The vLLM chart provisions an **80Gi model-cache PVC** so Hugging Face weights survive pod restarts; set `global.storageClass` in `values-global.yaml` when the cluster default is not suitable. Track upsize and quantization follow-ups in [TODO.md](https://github.com/validatedpatterns-sandbox/RHAIF-Nvidia-AIQ/blob/main/TODO.md).
 
-Default destination namespace is `aiq` (application) and `aiq-inference` (vLLM). Override `clusterGroup.namespaces`, each application's `namespace` in `values-prod.yaml`, and `targetNamespaces` in `values-secret.yaml.template` only if your cluster requires different project names.
+Default destination namespace is `aiq` (application) and `aiq-inference` (vLLM). Override `clusterGroup.namespaces` and each application's `namespace` in `values-prod.yaml` only if your cluster requires different project names.
 
 ## Configure secrets
 
@@ -96,12 +96,14 @@ Do not commit secrets. Copy the template out of Git and fill in real values:
 
 ```bash
 cp values-secret.yaml.template ~/values-secret-aiq.yaml
-# edit ~/values-secret-aiq.yaml
+# Set NVIDIA_API_KEY. Leave DB_USER_PASSWORD unset so Vault generates it once.
 ```
+
+`~/values-secret-aiq.yaml` is the operator-facing secret file. `backingStore: vault` must match `global.secretStore.backend`. `make load-secrets` writes fields to Vault KV `secret/data/hub/<secret name>`. The `hub` prefix is the ansible `vault_hub` default. Do not set `vaultPrefixes` on secret entries. Two `eso-bindings` Argo applications then materialize Kubernetes Secrets of the same names in `aiq` and `aiq-inference`.
 
 | Field | Purpose |
 |---|---|
-| `DB_USER_NAME`, `DB_USER_PASSWORD` | In-cluster Postgres |
+| `DB_USER_NAME`, `DB_USER_PASSWORD` | In-cluster Postgres. Leave `DB_USER_PASSWORD` unset in your copy so Vault generates it once. Re-running `load-secrets` does not rotate it. |
 | `NVIDIA_API_KEY` | Nemotron 3 Ultra (clarifier + deep research) on NVIDIA API Catalog |
 | `TAVILY_API_KEY` | Web search (optional for install-only smoke tests) |
 | `VLLM_API_KEY` | Optional. Omit from `~/values-secret-aiq.yaml` to use workflow default (`local-vllm`) |
@@ -110,12 +112,7 @@ cp values-secret.yaml.template ~/values-secret-aiq.yaml
 
 In-cluster vLLM does not authenticate callers. The hybrid workflow config supplies a default placeholder token so you do not need a real key for Lightning roles. `NVIDIA_API_KEY` is only for Ultra roles that call the NVIDIA API Catalog.
 
-`./pattern.sh make install` (and `./pattern.sh make load-secrets`) looks for `~/values-secret-aiq.yaml` before falling back to the in-repo template. On a fresh cluster, create workload namespaces before `load-secrets` so `huggingface-secret` can land in `aiq-inference`:
-
-```bash
-./pattern.sh make ensure-pattern-namespaces
-./pattern.sh make load-secrets
-```
+`./pattern.sh make install` (and `./pattern.sh make load-secrets`) looks for `~/values-secret-aiq.yaml` before falling back to the in-repo template. Vault does not write Kubernetes Secrets into workload namespaces. Argo CD creates those namespaces. ESO creates the Secret objects after the `eso-bindings` applications sync.
 
 Encrypt `~/values-secret-aiq.yaml` with `ansible-vault encrypt` if you want it encrypted at rest.
 
@@ -133,17 +130,20 @@ From the repository root, on the branch Argo CD should track:
 ./pattern.sh make argo-healthcheck
 ```
 
-`make install` installs the Validated Patterns Operator, OpenShift GitOps, and a `Pattern` custom resource. It then loads secrets into `aiq` and `aiq-inference` (`global.secretStore.backend: none`). Argo CD syncs applications in sync-wave order:
+`make install` installs the Validated Patterns Operator, OpenShift GitOps, and a `Pattern` custom resource. It waits for Vault, unseals it, and runs `load-secrets` (`global.secretStore.backend: vault`). Argo CD syncs applications in sync-wave order:
 
 ```text
-wave -1: aiq-workflow-config (workflow ConfigMap)
+wave -30: vault (HashiCorp Vault)
+wave -20: golang-external-secrets (External Secrets Operator and ClusterSecretStore vault-backend)
+wave -1:  aiq-workflow-config (workflow ConfigMap)
+wave 5:   eso-bindings (aiq-credentials in aiq, huggingface-secret in aiq-inference)
 wave 10:  nfd-config, nvidia-config (GPU operator enablement)
 wave 15:  openshift-ai (DataScienceCluster, KServe serving only; requires RHOAI 3.5+)
 wave 20:  vllm-inference-service (Nemotron Lightning on RHOAI vLLM CUDA runtime)
 wave 30:  aiq (umbrella Helm chart)
 ```
 
-Before `make install`, run `./pattern.sh make ensure-pattern-namespaces` (or `make load-secrets`, which depends on it) so `huggingface-secret` can land in `aiq-inference`.
+`eso-bindings` applications set `SkipDryRunOnMissingResource=true` so the first sync can wait for the ExternalSecret CRD. `clusterGroup.isHubCluster: true` selects kubernetes-auth `mountPath: hub` and role `hub-role` even though `clusterGroup.name` is `prod`.
 
 `make install` always provisions OpenShift GitOps (`vp-gitops`) when it is missing. `values-global.yaml` sets `global.singleArgoCD: true` so clustergroup Applications are created in that instance instead of a second Argo CD in `aiq-prod`.
 

@@ -28,6 +28,8 @@ VLLM_CHART = REPO_ROOT / "charts" / "all" / "vllm-inference-service"
 NFD_CHART = REPO_ROOT / "charts" / "all" / "nfd-config"
 NVIDIA_CONFIG_CHART = REPO_ROOT / "charts" / "all" / "nvidia-gpu-config"
 RHODS_CHART = REPO_ROOT / "charts" / "all" / "rhods"
+ESO_BINDINGS_CHART = REPO_ROOT / "charts" / "all" / "eso-bindings"
+NVIDIA_AIQ_VALUES = REPO_ROOT / "charts" / "aiq2-web" / "helm-charts-k8s" / "aiq" / "values.yaml"
 DEFAULT_LIGHTNING_BASE_URL = (
     "http://vllm-inference-service-predictor.aiq-inference.svc.cluster.local/v1"
 )
@@ -149,15 +151,23 @@ def test_gpu_stack_charts_render_expected_kinds(tmp_path: Path):
     assert "DataScienceCluster" in rhods_kinds
 
 
-def test_secret_template_targets_aiq_and_inference_namespaces():
+def test_secret_template_writes_vault_identities_without_target_namespaces():
     template = yaml.safe_load(VALUES_SECRET_TEMPLATE.read_text(encoding="utf-8"))
     secrets = {secret["name"]: secret for secret in template["secrets"]}
     aiq_fields = [field["name"] for field in secrets["aiq-credentials"]["fields"]]
     hf_fields = [field["name"] for field in secrets["huggingface-secret"]["fields"]]
+    db_password = next(
+        field for field in secrets["aiq-credentials"]["fields"] if field["name"] == "DB_USER_PASSWORD"
+    )
 
     assert template["version"] == "2.0"
-    assert secrets["aiq-credentials"]["targetNamespaces"] == ["aiq"]
-    assert secrets["huggingface-secret"]["targetNamespaces"] == ["aiq-inference"]
+    assert template["backingStore"] == "vault"
+    assert "dbPassword" in template["vaultPolicies"]
+    for secret in template["secrets"]:
+        assert "targetNamespaces" not in secret
+    assert "override" not in db_password
+    assert db_password["onMissingValue"] == "generate"
+    assert db_password["vaultPolicy"] == "dbPassword"
     assert aiq_fields == [
         "DB_USER_NAME",
         "DB_USER_PASSWORD",
@@ -166,6 +176,7 @@ def test_secret_template_targets_aiq_and_inference_namespaces():
         "VLLM_API_KEY",
     ]
     assert hf_fields == ["hftoken"]
+    assert secrets["huggingface-secret"]["fields"][0]["value"] is None
 
 
 def test_pattern_values_target_umbrella_chart_and_serving_stack():
@@ -174,7 +185,7 @@ def test_pattern_values_target_umbrella_chart_and_serving_stack():
 
     assert values_global["global"]["singleArgoCD"] is True
     assert values_global["global"]["secretLoader"]["disabled"] is False
-    assert values_global["global"]["secretStore"]["backend"] == "none"
+    assert values_global["global"]["secretStore"]["backend"] == "vault"
     assert values_global["global"]["model"]["hfRepo"] == HF_REPO
     assert values_global["global"]["model"]["servedName"] == SERVED_MODEL_NAME
     assert values_global["global"]["rhoai"]["version"] == "3.5"
@@ -189,8 +200,31 @@ def test_pattern_values_target_umbrella_chart_and_serving_stack():
     namespaces = values_prod["clusterGroup"]["namespaces"]
     subscriptions = values_prod["clusterGroup"]["subscriptions"]
 
+    assert values_prod["clusterGroup"]["isHubCluster"] is True
     assert "aiq" in namespaces
     assert "aiq-inference" in namespaces
+    assert "vault" in namespaces
+    assert "golang-external-secrets" in namespaces
+    assert applications["vault"]["chart"] == "hashicorp-vault"
+    assert applications["vault"]["annotations"]["argocd.argoproj.io/sync-wave"] == "-30"
+    assert applications["golang-external-secrets"]["chart"] == "golang-external-secrets"
+    assert applications["golang-external-secrets"]["annotations"]["argocd.argoproj.io/sync-wave"] == "-20"
+    assert applications["eso-aiq-credentials"]["name"] == "aiq-credentials"
+    assert applications["eso-aiq-credentials"]["namespace"] == "aiq"
+    assert applications["eso-aiq-credentials"]["path"] == "charts/all/eso-bindings"
+    assert applications["eso-aiq-credentials"]["annotations"]["argocd.argoproj.io/sync-wave"] == "5"
+    assert (
+        applications["eso-aiq-credentials"]["annotations"]["argocd.argoproj.io/sync-options"]
+        == "SkipDryRunOnMissingResource=true"
+    )
+    assert applications["eso-huggingface-secret"]["name"] == "huggingface-secret"
+    assert applications["eso-huggingface-secret"]["namespace"] == "aiq-inference"
+    assert applications["eso-huggingface-secret"]["path"] == "charts/all/eso-bindings"
+    assert applications["eso-huggingface-secret"]["annotations"]["argocd.argoproj.io/sync-wave"] == "5"
+    assert (
+        applications["eso-huggingface-secret"]["annotations"]["argocd.argoproj.io/sync-options"]
+        == "SkipDryRunOnMissingResource=true"
+    )
     assert subscriptions["rhoai"]["name"] == "rhods-operator"
     assert applications["openshift-ai"]["path"] == "charts/all/rhods"
     assert applications["nfd-config"]["annotations"]["argocd.argoproj.io/sync-wave"] == "10"
@@ -232,7 +266,11 @@ def test_vllm_chart_renders_served_name_hf_repo_and_model_cache_pvc(tmp_path: Pa
     assert container["command"] == ["python", "-m", "vllm.entrypoints.openai.api_server"]
     assert f"--served-model-name={SERVED_MODEL_NAME}" in args
     assert "--quantization=compressed-tensors" not in args
-    assert hf_token_ref["valueFrom"]["secretKeyRef"]["optional"] is True
+    assert hf_token_ref["valueFrom"]["secretKeyRef"] == {
+        "name": "huggingface-secret",
+        "key": "hftoken",
+        "optional": True,
+    }
     assert "model-cache" in volume_names
 
     init_env = {
@@ -264,6 +302,7 @@ def test_openshift_overlay_mounts_hybrid_config_and_disables_nginx_ingress():
     config_maps = {volume["configMap"]["name"] for volume in backend["volumes"] if volume.get("configMap") is not None}
 
     assert env["CONFIG_FILE"] == "/app/configs/config_hybrid_lightning.yml"
+    assert {"secretRef": {"name": "aiq-credentials"}} in backend["containers"][0]["envFrom"]
     assert "NAT_JOB_STORE_DB_URL" in env
     assert volume_names == {"postgres-init", "workflow-config"}
     assert config_maps == {"aiq-postgres-init", "aiq-workflow-config"}
@@ -282,3 +321,35 @@ def test_openshift_overlay_mounts_hybrid_config_and_disables_nginx_ingress():
     assert frontend_route["spec"]["tls"]["insecureEdgeTerminationPolicy"] == "Redirect"
     assert "storageClassName" not in pvcs["aiq-postgres-data"]["spec"]
     assert deployments["aiq-backend"]["metadata"]["namespace"] == "aiq"
+
+
+def test_eso_bindings_render_identity_external_secrets():
+    for release_name, namespace in (
+        ("aiq-credentials", "aiq"),
+        ("huggingface-secret", "aiq-inference"),
+    ):
+        manifests = _render_helm_chart(ESO_BINDINGS_CHART, release_name, namespace)
+        assert len(manifests) == 1
+        secret = manifests[0]
+        assert secret["apiVersion"] == "external-secrets.io/v1beta1"
+        assert secret["kind"] == "ExternalSecret"
+        assert secret["metadata"]["name"] == release_name
+        assert secret["spec"]["refreshInterval"] == "15s"
+        assert secret["spec"]["secretStoreRef"] == {
+            "name": "vault-backend",
+            "kind": "ClusterSecretStore",
+        }
+        assert secret["spec"]["target"] == {
+            "name": release_name,
+            "creationPolicy": "Merge",
+            "deletionPolicy": "Retain",
+        }
+        assert secret["spec"]["dataFrom"] == [
+            {"extract": {"key": f"secret/data/hub/{release_name}"}}
+        ]
+
+
+def test_nvidia_jwt_external_secrets_stay_disabled():
+    nvidia_values = yaml.safe_load(NVIDIA_AIQ_VALUES.read_text(encoding="utf-8"))
+    assert nvidia_values["externalSecrets"]["enabled"] is False
+
