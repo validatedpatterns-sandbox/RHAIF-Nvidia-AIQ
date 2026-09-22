@@ -36,8 +36,8 @@ under `extra_body`, not as top-level LLM fields — `ChatOpenAI` rejects them in
 **Hosted catalog vs in-cluster OpenShift:** the catalog profile uses
 `max_tokens: 32768` for shallow Lightning (256K–1M API context). The OpenShift
 hybrid caps vLLM at `--max-model-len=4096` with `--enforce-eager` on a single L4, so shallow uses
-`max_tokens: 4096` plus `extra_body.thinking_token_budget: 2048` so reasoning and
-the final answer both fit after prompt and tool schemas. Do not copy catalog
+`max_tokens: 1536` plus `extra_body.thinking_token_budget: 512` so the prompt, reasoning, and
+answer fit in the context window. Do not copy catalog
 `32768` onto this vLLM deployment without raising `--max-model-len` and GPU memory.
 
 Async jobs report `job_status.status: success` when finished (not `completed`).
