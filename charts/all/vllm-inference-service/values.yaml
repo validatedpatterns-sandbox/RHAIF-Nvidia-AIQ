@@ -50,6 +50,7 @@ vllmServingRuntime:
     - "--model=/cache/models"
     - "--distributed-executor-backend=mp"
     - "--max-model-len=4096"
+    - "--max-num-batched-tokens=8192"
     - "--dtype=auto"
     - "--gpu-memory-utilization"
     - "0.90"
