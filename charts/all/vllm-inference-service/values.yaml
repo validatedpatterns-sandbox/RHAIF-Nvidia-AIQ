@@ -49,10 +49,11 @@ vllmServingRuntime:
   args:
     - "--model=/cache/models"
     - "--distributed-executor-backend=mp"
-    - "--max-model-len=8192"
+    - "--max-model-len=4096"
     - "--dtype=auto"
     - "--gpu-memory-utilization"
-    - "0.92"
+    - "0.90"
+    - "--enforce-eager"
     - "--moe-backend=marlin"
     - "--kv-cache-dtype=fp8"
     - "--enable-prefix-caching"
