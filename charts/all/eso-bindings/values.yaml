@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, Red Hat, Inc.
+# SPDX-License-Identifier: Apache-2.0
+secretStore:
+  name: vault-backend
+  kind: ClusterSecretStore
+vault:
+  kvMount: secret/data
+  prefix: hub
+target:
+  creationPolicy: Merge
+  deletionPolicy: Retain
+refreshInterval: 15s

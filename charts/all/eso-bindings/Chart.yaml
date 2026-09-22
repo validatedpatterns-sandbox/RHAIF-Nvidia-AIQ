@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, Red Hat, Inc.
+# SPDX-License-Identifier: Apache-2.0
+apiVersion: v2
+name: eso-bindings
+description: VP ExternalSecret identity binding (release name = Vault = K8s Secret)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
