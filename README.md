@@ -19,54 +19,42 @@ It does not contain AI-Q application source. Runtime images come from NGC
 Profile: intent + shallow research on in-cluster vLLM; clarifier + deep research on
 NVIDIA API Catalog (Nemotron 3 Ultra).
 
-## Prerequisites
+## Deploying the demo
 
-- OpenShift cluster with `oc` logged in (cluster-admin or equivalent)
-- [Podman](https://podman.io/) (for `./pattern.sh`)
-- GPU worker capacity (Machine API on AWS or Azure), or an existing GPU node
-- `NVIDIA_API_KEY` for Ultra roles
-- This branch pushed to a Git remote Argo CD can clone
+Prerequisites: OpenShift cluster with `oc` logged in (cluster-admin or equivalent);
+[Podman](https://podman.io/) for `./pattern.sh`; this branch pushed to a Git remote
+Argo CD can clone.
 
-## Quick start
+### Configure secrets
 
 ```bash
-# Phase 0 — GPU workers (AWS example)
-./pattern.sh make create-gpu-machineset
-
-# Secrets (do not commit)
 cp values-secret.yaml.template ~/values-secret-aiq.yaml
-# Set NVIDIA_API_KEY. Leave DB_USER_PASSWORD unset so Vault generates it once.
-# load-secrets writes Vault KV at secret/data/hub/<secret name>.
-
-./pattern.sh make install
-./pattern.sh make argo-healthcheck
+# Fill in keys. Do not commit this file.
 ```
 
-Wait for vLLM:
+`./pattern.sh make install` loads `~/values-secret-aiq.yaml` into Vault.
+
+### Provision a GPU node (required before install)
+
+See [GPU_provisioning.md](GPU_provisioning.md) for AWS/Azure MachineSet steps and
+for labeling an existing GPU node.
+
+### Deploy the pattern
+
+```bash
+./pattern.sh make install
+```
+
+### Check readiness
 
 ```bash
 oc wait --for=condition=Ready inferenceservice/vllm-inference-service -n aiq-inference --timeout=45m
 oc get route -n aiq
 ```
 
-Full install, upgrade, and validation notes:
+Open the frontend Route and try a shallow research query. For upgrade, uninstall,
+and troubleshooting, see
 [docs/source/deployment/validated-patterns.md](docs/source/deployment/validated-patterns.md).
-
-GPU MachineSet details: [GPU_provisioning.md](GPU_provisioning.md).
-
-## Repository layout
-
-```text
-values-global.yaml / values-prod.yaml   Pattern + cluster GitOps config
-values-secret.yaml.template             Secret field template (Vault backing store)
-charts/all/eso-bindings                 ExternalSecret identity (release name = Vault KV)
-charts/all/                             NFD, GPU Operator, RHOAI, vLLM
-charts/aiq-workflow-config/             Hybrid Lightning workflow ConfigMap
-charts/aiq2-web/                        AI-Q umbrella Helm chart (relocated)
-overrides/                              OpenShift Route / hybrid mounts
-ansible/                                GPU MachineSet playbooks
-tests/deploy/                           Overlay and chart render tests
-```
 
 ## License
 
