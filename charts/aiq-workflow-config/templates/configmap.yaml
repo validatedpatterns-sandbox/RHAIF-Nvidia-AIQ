@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aiq-workflow-config
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+data:
+  config_hybrid_lightning.yml: |
+{{ .Files.Get "files/config_hybrid_lightning.yml" | indent 4 }}

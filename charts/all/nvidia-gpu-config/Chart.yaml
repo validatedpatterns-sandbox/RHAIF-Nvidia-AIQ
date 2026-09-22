@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+apiVersion: v2
+name: nvidia-gpu-config
+description: NVIDIA GPU Operator ClusterPolicy for AI-Q inference
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

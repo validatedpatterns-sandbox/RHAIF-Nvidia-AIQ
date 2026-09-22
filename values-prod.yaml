@@ -1,0 +1,75 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Hybrid Lightning profile (GPU stack + in-cluster vLLM + NVIDIA API Ultra).
+clusterGroup:
+  name: prod
+  namespaces:
+    aiq:
+      operatorGroup: false
+    aiq-inference:
+      operatorGroup: true
+      labels:
+        opendatahub.io/dashboard: "true"
+        modelmesh-enabled: "false"
+    redhat-ods-operator:
+      operatorGroup: true
+      targetNamespaces: []
+    openshift-nfd: {}
+    nvidia-gpu-operator: {}
+  subscriptions:
+    nfd:
+      name: nfd
+      namespace: openshift-nfd
+    nvidia:
+      name: gpu-operator-certified
+      namespace: nvidia-gpu-operator
+      source: certified-operators
+    rhoai:
+      name: rhods-operator
+      namespace: redhat-ods-operator
+  applications:
+    nfd-config:
+      name: nfd-config
+      namespace: openshift-nfd
+      path: charts/all/nfd-config
+      annotations:
+        argocd.argoproj.io/sync-wave: "10"
+    nvidia-config:
+      name: nvidia-config
+      namespace: nvidia-gpu-operator
+      path: charts/all/nvidia-gpu-config
+      annotations:
+        argocd.argoproj.io/sync-wave: "10"
+    openshift-ai:
+      name: openshift-ai
+      namespace: redhat-ods-operator
+      path: charts/all/rhods
+      annotations:
+        argocd.argoproj.io/sync-wave: "15"
+    vllm-inference-service:
+      name: vllm-inference-service
+      namespace: aiq-inference
+      path: charts/all/vllm-inference-service
+      annotations:
+        argocd.argoproj.io/sync-wave: "20"
+      syncPolicy:
+        automated:
+          selfHeal: true
+        retry:
+          limit: 20
+    aiq-workflow-config:
+      name: aiq-workflow-config
+      namespace: aiq
+      path: charts/aiq-workflow-config
+      annotations:
+        argocd.argoproj.io/sync-wave: "-1"
+    aiq:
+      name: aiq
+      namespace: aiq
+      path: charts/aiq2-web
+      annotations:
+        argocd.argoproj.io/sync-wave: "30"
+      extraValueFiles:
+        - /overrides/values-openshift-base.yaml
+        - /overrides/values-openshift-hybrid-lightning.yaml

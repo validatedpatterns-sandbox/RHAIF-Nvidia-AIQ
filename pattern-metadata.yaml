@@ -1,0 +1,61 @@
+# This goal of this metadata is mainly used as a source of truth for
+# documentation and qe.
+metadata_version: "1.0"
+name: aiq
+pattern_version: "1.0"
+description: NVIDIA AI-Q research agent on OpenShift via Validated Patterns GitOps
+display_name: NVIDIA AI-Q
+repo_url: https://github.com/validatedpatterns-sandbox/RHAIF-Nvidia-AIQ
+docs_repo_url: https://github.com/validatedpatterns/docs
+issues_url: https://github.com/validatedpatterns-sandbox/RHAIF-Nvidia-AIQ/issues
+docs_url: https://github.com/validatedpatterns-sandbox/RHAIF-Nvidia-AIQ/blob/main/docs/source/deployment/validated-patterns.md
+# ci_url: omit until Validated Patterns CI exists
+# can be sandbox, tested or maintained
+tier: sandbox
+owners: itay1551
+requirements:
+  hub: # Primary cluster. clusterGroupName is prod (single-cluster; no ACM hub/spoke).
+    compute:
+      platform:
+        aws:
+          replicas: 3
+          type: m5.2xlarge
+        azure:
+          replicas: 3
+          type: Standard_D8s_v4
+        gcp:
+          replicas: 3
+          type: n1-standard-8
+    controlPlane:
+      platform:
+        aws:
+          replicas: 3
+          type: m5.xlarge
+        azure:
+          replicas: 3
+          type: Standard_D4s_v4
+        gcp:
+          replicas: 3
+          type: n1-standard-4
+
+# Loosely defined extra features like hypershift support, non-openshift
+# kubernetes support, spoke support
+extra_features:
+  hypershift_support: false
+  spoke_support: false
+
+external_requirements:
+  # This gets added as a note in the cluster sizing doc page
+  cluster_sizing_note: >
+    This pattern installs on a single OpenShift cluster (clusterGroupName
+    prod). The instance types above are modest generic equivalents for the
+    control plane and generic workers. The hybrid Lightning profile requires one
+    GPU workers in Phase 0 — AWS default is 1× g6.2xlarge (NVIDIA L4) via make
+    create-gpu-machineset; Azure default is 2× Standard_NC8as_T4_v3 via make
+    create-gpu-machineset-azure (override GPU_REPLICAS_AZURE=1 for one worker) —
+    plus OpenShift AI, GPU Operator, and Serverless
+    subscriptions installed by the pattern. Nemotron 3.5 Lightning is served
+    in-cluster with a quantized vLLM profile; Nemotron 3 Ultra (clarifier and
+    deep research) uses the NVIDIA API Catalog (NVIDIA_API_KEY). Tavily is
+    optional for web research. Postgres and the vLLM model-cache PVC use the cluster
+    default StorageClass unless you set global.storageClass in values-global.yaml.

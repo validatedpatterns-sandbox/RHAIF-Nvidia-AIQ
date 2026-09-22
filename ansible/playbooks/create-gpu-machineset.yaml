@@ -1,0 +1,192 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Mirrors validatedpatterns/rag-llm-gitops ansible/playbooks/create-gpu-machineset.yaml.
+# Provisions AWS GPU worker MachineSets for RHOAI vLLM serving (Phase 0).
+- name: Generate GPU MachineSet for AI-Q Validated Pattern (AWS)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    gpu_instance_type: g6.2xlarge
+    gpu_replicas: 1
+    gpu_count: 1
+    override_zone: ""
+    usable_regions:
+      - us-east-1
+      - us-east-2
+      - us-west-1
+      - us-west-2
+      - ca-central-1
+      - sa-east-1
+      - eu-west-1
+      - eu-west-2
+      - eu-west-3
+      - eu-central-1
+      - eu-north-1
+      - ap-northeast-1
+      - ap-northeast-2
+      - ap-northeast-3
+      - ap-southeast-1
+      - ap-southeast-2
+      - ap-south-1
+  tasks:
+    - name: "[create-gpu-machine-set] Get the infra-id for the cluster"
+      kubernetes.core.k8s_info:
+        api_version: config.openshift.io/v1
+        kind: infrastructure
+        name: cluster
+      register: infraInfo
+
+    - name: "[create-gpu-machine-set] Get Platform Name"
+      ansible.builtin.set_fact:
+        cloudProvider: "{{ infraInfo.resources[0].status.platform | lower }}"
+
+    - name: "[create-gpu-machine-set] Fail when cluster has no cloud Machine API"
+      ansible.builtin.fail:
+        msg: >-
+          Cluster platform is '{{ cloudProvider }}'. create-gpu-machineset requires a cloud
+          platform with Machine API (for example AWS). For bare-metal or compact clusters
+          without Machine API, add GPU workers manually. See GPU_provisioning.md.
+      when: cloudProvider not in ['aws']
+
+    - name: "[create-gpu-machine-set] Set fact Region"
+      ansible.builtin.set_fact:
+        cloudRegion: "{{ infraInfo.resources[0].status.platformStatus[cloudProvider].region }}"
+
+    - name: "[create-gpu-machine-set] Search for MachineSets"
+      kubernetes.core.k8s_info:
+        api: machine.openshift.io/v1beta1
+        kind: MachineSet
+        namespace: openshift-machine-api
+      register: machineset
+
+    - name: "[create-gpu-machine-set] Collect non-GPU worker MachineSets"
+      ansible.builtin.set_fact:
+        candidateMachinesets: "{{ machineset.resources | rejectattr('metadata.name', 'search', 'gpu') | list }}"
+
+    - name: "[create-gpu-machine-set] Select worker MachineSet matching OVERRIDE_ZONE"
+      ansible.builtin.set_fact:
+        workerMachineset: >-
+          {{
+            candidateMachinesets
+            | selectattr(
+                'spec.template.spec.providerSpec.value.placement.availabilityZone',
+                'equalto',
+                override_zone
+              )
+            | list
+            | first
+            | default(none, true)
+          }}
+      when: override_zone | length > 0
+
+    - name: "[create-gpu-machine-set] Select active non-GPU worker MachineSet"
+      ansible.builtin.set_fact:
+        workerMachineset: >-
+          {{
+            candidateMachinesets
+            | selectattr('spec.replicas', '>', 0)
+            | list
+            | first
+            | default(candidateMachinesets | first)
+          }}
+      when: override_zone | length == 0
+
+    - name: "[create-gpu-machine-set] Fail when OVERRIDE_ZONE has no matching worker MachineSet"
+      ansible.builtin.fail:
+        msg: >-
+          No worker MachineSet found in availability zone '{{ override_zone }}'.
+          Pick a zone that already has a worker pool or omit OVERRIDE_ZONE.
+      when:
+        - override_zone | length > 0
+        - workerMachineset is not defined or workerMachineset.metadata is not defined
+
+    - name: "[create-gpu-machine-set] Fail when no worker MachineSet is available"
+      ansible.builtin.fail:
+        msg: >-
+          No worker MachineSet found in openshift-machine-api. Scale a worker pool or
+          create a worker MachineSet before provisioning GPU nodes.
+      when: workerMachineset is not defined or workerMachineset.metadata is not defined
+
+    - name: "[create-gpu-machine-set] Resolve availability zone"
+      ansible.builtin.set_fact:
+        cloudAvailabilityZone: >-
+          {{
+            override_zone
+            if override_zone | length > 0
+            else workerMachineset.spec.template.spec.providerSpec.value.placement.availabilityZone
+          }}
+
+    - name: "[create-gpu-machine-set] Search for worker Machines"
+      kubernetes.core.k8s_info:
+        api: machine.openshift.io/v1beta1
+        kind: Machine
+        namespace: openshift-machine-api
+        label_selectors:
+          - "machine.openshift.io/cluster-api-machine-type=worker"
+      register: machines
+
+    - name: "[create-gpu-machine-set] Select a worker Machine in the target zone for AMI and networking"
+      ansible.builtin.set_fact:
+        workerMachine: >-
+          {{
+            machines.resources
+            | rejectattr('metadata.name', 'search', 'gpu')
+            | selectattr(
+                'spec.providerSpec.value.placement.availabilityZone',
+                'equalto',
+                cloudAvailabilityZone
+              )
+            | list
+            | first
+            | default(none, true)
+          }}
+
+    - name: "[create-gpu-machine-set] Use worker Machine networking in the target zone"
+      ansible.builtin.set_fact:
+        networkingProviderSpec: "{{ workerMachine.spec.providerSpec.value }}"
+      when: workerMachine is defined and workerMachine.spec is defined
+
+    - name: "[create-gpu-machine-set] Fall back to worker MachineSet template in the target zone"
+      ansible.builtin.set_fact:
+        networkingProviderSpec: "{{ workerMachineset.spec.template.spec.providerSpec.value }}"
+      when:
+        - networkingProviderSpec is not defined
+        - workerMachineset is defined
+        - workerMachineset.metadata is defined
+
+    - name: "[create-gpu-machine-set] Fail when no networking source exists for the target zone"
+      ansible.builtin.fail:
+        msg: >-
+          No worker Machine or MachineSet found for availability zone '{{ cloudAvailabilityZone }}'.
+          Scale a worker pool in that zone (or pick another OVERRIDE_ZONE) before provisioning GPU nodes.
+      when: networkingProviderSpec is not defined
+
+    - name: "[create-gpu-machine-set] Setting facts to be used in MachineSet template"
+      ansible.builtin.set_fact:
+        clusterId: "{{ infraInfo.resources[0].status.infrastructureName }}"
+        instanceAmi: "{{ networkingProviderSpec.ami.id }}"
+        cacheable: no
+        securityGroups: "{{ networkingProviderSpec.securityGroups }}"
+        subnets: "{{ networkingProviderSpec.subnet }}"
+        tags: "{{ networkingProviderSpec.tags }}"
+
+    - name: "[create-gpu-machine-set] Generate machineset"
+      ansible.builtin.template:
+        src: templates/gpu-machineset.j2
+        dest: /tmp/gpu-machineset.yaml
+
+    - name: "[create-gpu-machine-set] Apply machineset to cluster {{ clusterId }}"
+      kubernetes.core.k8s:
+        state: present
+        src: /tmp/gpu-machineset.yaml
+      when: cloudRegion in usable_regions
+
+    - name: "[create-gpu-machine-set] Warn when region is not in the supported list"
+      ansible.builtin.debug:
+        msg: >-
+          Region {{ cloudRegion }} is not in the playbook supported-region list.
+          Review GPU_provisioning.md and apply /tmp/gpu-machineset.yaml manually if needed.
+      when: cloudRegion not in usable_regions
