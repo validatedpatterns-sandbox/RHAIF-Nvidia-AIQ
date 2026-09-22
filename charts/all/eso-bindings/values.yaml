@@ -7,6 +7,8 @@ vault:
   kvMount: secret/data
   prefix: hub
 target:
-  creationPolicy: Merge
+  # Owner creates the Secret on a fresh cluster. Merge only updates an existing
+  # Secret and fails when none exists (ESO: "secret won't be created").
+  creationPolicy: Owner
   deletionPolicy: Retain
 refreshInterval: 15s
