@@ -4,12 +4,34 @@
 
 include Makefile-common
 
+# Serving profile. Unset uses main.variant (l4) from values-global.yaml.
+# PROFILE=gpu80 exports TARGET_VARIANT so the utility container installs that variant.
+PROFILE ?=
+
+ifneq ($(PROFILE),)
+ifeq ($(wildcard variants/$(PROFILE)/values-$(PROFILE).yaml),)
+$(error Unknown PROFILE '$(PROFILE)'. Expected variants/$(PROFILE)/values-$(PROFILE).yaml)
+endif
+ifeq ($(wildcard profiles/$(PROFILE).yaml),)
+$(error Unknown PROFILE '$(PROFILE)'. Expected profiles/$(PROFILE).yaml)
+endif
+ifneq ($(shell grep -c '^placeholder:' profiles/$(PROFILE).yaml),0)
+$(error PROFILE=$(PROFILE) is a placeholder and cannot be installed)
+endif
+export TARGET_VARIANT := $(PROFILE)
+include profiles/$(PROFILE).mk
+endif
+
 # Phase 0 GPU worker provisioning (mirrors validatedpatterns/rag-llm-gitops).
+ifneq ($(GPU_INSTANCE_TYPE_REQUIRED),true)
 GPU_INSTANCE_TYPE ?= g6.2xlarge
+endif
 GPU_REPLICAS ?= 1
 # Azure playbook defaults to 2 replicas (rag-llm-gitops); override when you need a single worker.
 GPU_REPLICAS_AZURE ?= 2
+ifneq ($(GPU_VM_SIZE_REQUIRED),true)
 GPU_VM_SIZE ?= Standard_NC8as_T4_v3
+endif
 OVERRIDE_ZONE ?=
 
 .PHONY: ensure-pattern-namespaces
@@ -18,13 +40,27 @@ ensure-pattern-namespaces: ## Create aiq and aiq-inference namespaces and RHOAI 
 	oc create namespace aiq-inference --dry-run=client -o yaml | oc apply -f -
 	oc label namespace aiq-inference opendatahub.io/dashboard=true modelmesh-enabled=false --overwrite
 
+.PHONY: check-gpu-instance-type
+check-gpu-instance-type:
+	@if [ "$(GPU_INSTANCE_TYPE_REQUIRED)" = true ] && [ -z "$(GPU_INSTANCE_TYPE)" ]; then \
+		echo "PROFILE=$(PROFILE) requires GPU_INSTANCE_TYPE set to an 80 GiB GPU SKU" >&2; \
+		exit 1; \
+	fi
+
+.PHONY: check-gpu-vm-size
+check-gpu-vm-size:
+	@if [ "$(GPU_VM_SIZE_REQUIRED)" = true ] && [ -z "$(GPU_VM_SIZE)" ]; then \
+		echo "PROFILE=$(PROFILE) requires GPU_VM_SIZE set to an 80 GiB GPU SKU" >&2; \
+		exit 1; \
+	fi
+
 .PHONY: create-gpu-machineset
-create-gpu-machineset: ## Create AWS GPU MachineSet (overrides: GPU_INSTANCE_TYPE, GPU_REPLICAS, OVERRIDE_ZONE)
+create-gpu-machineset: check-gpu-instance-type ## Create AWS GPU MachineSet (overrides: GPU_INSTANCE_TYPE, GPU_REPLICAS, OVERRIDE_ZONE, PROFILE)
 	ansible-playbook ansible/playbooks/create-gpu-machineset.yaml \
 		-e "gpu_instance_type=$(GPU_INSTANCE_TYPE) gpu_replicas=$(GPU_REPLICAS) override_zone=$(OVERRIDE_ZONE)"
 
 .PHONY: create-gpu-machineset-azure
-create-gpu-machineset-azure: ## Create Azure GPU MachineSet (overrides: GPU_VM_SIZE, GPU_REPLICAS_AZURE, OVERRIDE_ZONE)
+create-gpu-machineset-azure: check-gpu-vm-size ## Create Azure GPU MachineSet (overrides: GPU_VM_SIZE, GPU_REPLICAS_AZURE, OVERRIDE_ZONE, PROFILE)
 	ansible-playbook ansible/playbooks/create-gpu-machineset-azure.yaml \
 		-e "gpu_vm_size=$(GPU_VM_SIZE) gpu_replicas=$(GPU_REPLICAS_AZURE) override_zone=$(OVERRIDE_ZONE)"
 

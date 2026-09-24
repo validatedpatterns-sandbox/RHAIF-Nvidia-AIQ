@@ -1,3 +1,6 @@
+{{- if .Values.placeholder }}
+{{- fail (printf "%s" .Values.placeholder) }}
+{{- end }}
 apiVersion: serving.kserve.io/v1alpha1
 kind: ServingRuntime
 metadata:

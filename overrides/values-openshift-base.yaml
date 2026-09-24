@@ -4,7 +4,7 @@
 # OpenShift platform overlay for charts/aiq2-web.
 # Applied via clusterGroup.applications.aiq.extraValueFiles.
 #
-# Pair with values-openshift-hybrid-lightning.yaml (values-prod.yaml).
+# Pair with values-openshift-hybrid-lightning.yaml (values-global.yaml).
 
 aiq:
   apps:

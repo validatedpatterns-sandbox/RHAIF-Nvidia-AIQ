@@ -25,7 +25,7 @@ general:
 llms:
   nemotron_lightning_intent_llm:
     _type: openai
-    model_name: nemotron-3.5-lightning-30b-a3b
+    model_name: {{ .Values.global.model.servedName }}
     base_url: ${AIQ_LIGHTNING_BASE_URL:-http://vllm-inference-service-predictor.aiq-inference.svc.cluster.local/v1}
     api_key: ${VLLM_API_KEY}
     temperature: 0.1
@@ -38,18 +38,20 @@ llms:
         enable_thinking: false
   nemotron_lightning_agent_llm:
     _type: openai
-    model_name: nemotron-3.5-lightning-30b-a3b
+    model_name: {{ .Values.global.model.servedName }}
     base_url: ${AIQ_LIGHTNING_BASE_URL:-http://vllm-inference-service-predictor.aiq-inference.svc.cluster.local/v1}
     api_key: ${VLLM_API_KEY}
     temperature: 0.2
     top_p: 0.7
-    max_tokens: 1536
+    max_tokens: {{ .Values.workflowProfile.lightningAgent.maxTokens }}
     num_retries: 5
     parallel_tool_calls: false
     extra_body:
       chat_template_kwargs:
         enable_thinking: true
-      thinking_token_budget: 512
+      {{ if .Values.workflowProfile.lightningAgent.thinkingTokenBudget }}
+      thinking_token_budget: {{ .Values.workflowProfile.lightningAgent.thinkingTokenBudget }}
+      {{ end }}
   nemotron_ultra_llm:
     _type: nim
     model_name: nvidia/nemotron-3-ultra-550b-a55b

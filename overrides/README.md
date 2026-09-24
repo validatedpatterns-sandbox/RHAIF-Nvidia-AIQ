@@ -2,14 +2,14 @@
 
 Validated Patterns applies these files on top of the AI-Q umbrella chart at
 `charts/aiq2-web`. Argo CD loads them through `clusterGroup.applications.aiq.extraValueFiles`
-in `values-prod.yaml`.
+in `values-global.yaml`.
 
-## Three configuration layers
+## Configuration layers
 
 | Layer | Files | What it controls |
 |---|---|---|
-| Pattern globals | `values-global.yaml` | Argo CD mode, Vault secret backend, model IDs |
-| Cluster topology | `values-prod.yaml` | Operators, Vault, ESO, GPU stack, vLLM, and AI-Q Argo applications |
+| Pattern globals | `values-global.yaml` | Argo CD mode, Vault, default model IDs, shared applications |
+| Serving profile | `variants/<name>/values-<name>.yaml` and `profiles/<name>.yaml` | GPU, checkpoint, vLLM args, shallow Lightning token budgets |
 | OpenShift overlays | `overrides/values-openshift-*.yaml` | Platform tweaks for the AI-Q umbrella chart (Route, PVC, workflow mount) |
 
 These overlays only adjust how the published AI-Q images run on OpenShift.

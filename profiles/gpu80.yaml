@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, Red Hat, Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Single 80 GiB GPU, full-precision BF16 weights (not NVFP4, not FP16).
+# NVIDIA validates about 256K context for this checkpoint on one H100 80GB.
+# Catalog parity uses a smaller window: max-model-len 65536 and shallow max_tokens 32768.
+# Do not pass --quantization; vLLM reads dtype from the checkpoint.
+# Omit vLLM 0.27-only 1x H100 flags (mamba-ssm-cache-dtype, stochastic Mamba rounding);
+# this pattern's RHOAI 3.5 runtime is vLLM 0.24+.
+# If the runtime rejects max-num-batched-tokens below max-model-len, raise it to 65536.
+global:
+  model:
+    hfRepo: nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16
+    servedName: nemotron-3.5-lightning-30b-a3b-bf16
+modelCache:
+  size: 150Gi
+vllmInferenceService:
+  predictor:
+    resources:
+      limits:
+        nvidia.com/gpu: "1"
+vllmServingRuntime:
+  args:
+    - "--model=/cache/models"
+    - "--distributed-executor-backend=mp"
+    - "--max-model-len=65536"
+    - "--max-num-batched-tokens=32768"
+    - "--dtype=auto"
+    - "--gpu-memory-utilization"
+    - "0.90"
+    - "--enable-prefix-caching"
+    - "--mamba-backend=flashinfer"
+    - "--mamba-cache-mode=align"
+    - "--reasoning-parser=nemotron_v3"
+    # qwen3_coder is NVIDIA's vLLM tool parser for Nemotron (not a Qwen model).
+    - "--enable-auto-tool-choice"
+    - "--tool-call-parser"
+    - "qwen3_coder"
+workflowProfile:
+  lightningAgent:
+    maxTokens: 32768
+    thinkingTokenBudget: 0
