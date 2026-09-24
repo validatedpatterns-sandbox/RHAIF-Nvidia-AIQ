@@ -54,7 +54,7 @@ llms:
       {{ end }}
   nemotron_ultra_llm:
     _type: nim
-    model_name: nvidia/nemotron-3-ultra-550b-a55b
+    model_name: nvidia/nemotron-3-super-120b-a12b
     base_url: https://integrate.api.nvidia.com/v1
     api_key: ${NVIDIA_API_KEY}
     temperature: 0.2
@@ -65,7 +65,7 @@ llms:
       enable_thinking: false
   nemotron_ultra_writer_llm:
     _type: nim
-    model_name: nvidia/nemotron-3-ultra-550b-a55b
+    model_name: nvidia/nemotron-3-super-120b-a12b
     base_url: https://integrate.api.nvidia.com/v1
     api_key: ${NVIDIA_API_KEY}
     temperature: 0.2

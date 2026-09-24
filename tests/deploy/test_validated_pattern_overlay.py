@@ -113,6 +113,8 @@ def test_hybrid_config_chart_file_is_valid_yaml():
     assert config["general"]["front_end"]["_type"] == "aiq_api"
     assert config["llms"]["nemotron_lightning_intent_llm"]["_type"] == "openai"
     assert config["llms"]["nemotron_ultra_llm"]["_type"] == "nim"
+    assert config["llms"]["nemotron_ultra_llm"]["model_name"] == "nvidia/nemotron-3-super-120b-a12b"
+    assert config["llms"]["nemotron_ultra_writer_llm"]["model_name"] == "nvidia/nemotron-3-super-120b-a12b"
     assert config["functions"]["shallow_research_agent"]["llm"] == "nemotron_lightning_agent_llm"
     assert config["functions"]["clarifier_agent"]["llm"] == "nemotron_ultra_llm"
     assert config["llms"]["nemotron_lightning_agent_llm"]["max_tokens"] == 1536
