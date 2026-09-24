@@ -1,5 +1,12 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026, Red Hat, Inc.
 # SPDX-License-Identifier: Apache-2.0
 # Stubs so `helm template` works standalone; Validated Patterns injects global.* at deploy time.
-global: {}
+# Defaults match profiles/l4.yaml. A serving profile overrides these via extraValueFiles.
+global:
+  model:
+    servedName: nemotron-3.5-lightning-30b-a3b
 clusterGroup: {}
+workflowProfile:
+  lightningAgent:
+    maxTokens: 1536
+    thinkingTokenBudget: 512

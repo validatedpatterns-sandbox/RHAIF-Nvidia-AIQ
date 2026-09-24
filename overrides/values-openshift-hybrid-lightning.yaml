@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Hybrid Lightning profile: in-cluster vLLM (intent + shallow) and NVIDIA API
-# Catalog Ultra (clarifier + deep). Pair with values-prod.yaml.
+# Catalog Ultra (clarifier + deep). Pair with values-global.yaml.
 
 aiq:
   apps:
