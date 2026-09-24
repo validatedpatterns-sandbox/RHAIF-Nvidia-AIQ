@@ -2,10 +2,10 @@
 name: verify-aiq
 description: >
   Verify NVIDIA AI-Q on the OpenShift pattern backend by driving shallow_researcher
-  and deep_researcher with the same easy research question, then judging whether each
-  answer makes sense. Use when smoke-testing research agents after deploy, checking
-  hybrid Lightning routing, or proving shallow vs deep research still produce
-  reasonable answers.
+  with an easy question and deep_researcher with a harder cited question, then
+  judging whether each answer makes sense. Use when smoke-testing research agents
+  after deploy, checking hybrid Lightning routing, or proving shallow vs deep
+  research still produce reasonable answers.
 ---
 
 # Verify AI-Q (shallow + deep research)
@@ -14,22 +14,28 @@ This skill drives a **deployed** AI-Q backend (Validated Pattern on OpenShift), 
 local blueprint checkout. Primary surface: HTTP async job API via `scripts/aiq.py`.
 Secondary surfaces (frontend Route, interactive CLI) exist but are out of scope here.
 
-## Locked smoke question
+## Locked smoke questions
 
-Default question (override with `VERIFY_AIQ_QUESTION`):
+Shallow default (override with `VERIFY_AIQ_QUESTION`):
 
 ```text
 What is the capital of France?
 ```
 
-Alternatives that stay easy to judge:
+Deep default (override with `VERIFY_AIQ_DEEP_QUESTION`):
+
+```text
+What were the main technical causes of the Chernobyl disaster on 26 April 1986, and which reactor type was involved? Include a source section with the pages you used.
+```
+
+The deep question asks for causes, a reactor type, and a source section. A one-line fact lets the writer skip that section, and deep research then fails citation integrity.
+
+Easy shallow alternatives:
 
 1. `What does HTTP stand for?`
 2. `In what year did Apollo 11 land on the Moon?`
 3. `What is the chemical formula for water?`
 4. `Who wrote Romeo and Juliet?`
-
-Keep one question for both agents in a single run.
 
 ## Launch
 
@@ -74,7 +80,7 @@ Pass criteria:
 ## Drive
 
 ```bash
-# Same question → shallow, then deep. Writes evidence; prints artifact dir path.
+# Easy question for shallow, harder cited question for deep.
 OUT="$(${SKILL_DIR}/scripts/run-pair.sh)"
 ```
 
@@ -106,7 +112,7 @@ Expected files:
 
 | File | Purpose |
 |---|---|
-| `question.txt` | Exact question sent |
+| `question.txt` | Shallow and deep questions sent |
 | `env.txt` | `AIQ_SERVER_URL` and run id |
 | `shallow-submit.json` / `shallow-job-id.txt` / `shallow-report.json` | Shallow path |
 | `deep-submit.json` / `deep-job-id.txt` / `deep-report.json` | Deep path |
@@ -118,8 +124,10 @@ Expected files:
 2. Capture submit response (job id) and final report for each agent.
 3. Reasonableness bar is intentionally coarse: read each report and decide only
    **makes sense** or **does not make sense**, with one short why.
-4. For the default question, "makes sense" means the answer clearly identifies
-   **Paris** as the capital (extra prose or citations are fine).
+4. Shallow "makes sense" means the answer clearly identifies **Paris** as the capital.
+   Deep "makes sense" means the report names the **RBMK** reactor and at least one
+   technical cause (void coefficient, control-rod design, or safety systems disabled
+   for the test), and the source section does not contradict that.
 5. Write `verdict.md` in the artifact dir after both reports exist. Example:
 
 ```markdown
@@ -131,7 +139,7 @@ Expected files:
 
 ## Deep
 - Verdict: makes sense
-- One-line why: Report concludes Paris; citations do not contradict that.
+- One-line why: Names the RBMK reactor and a technical cause, with a source section.
 ```
 
 Cleanup must not delete this directory.

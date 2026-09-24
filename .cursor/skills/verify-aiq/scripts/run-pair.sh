@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Drive shallow_researcher then deep_researcher with the same question.
+# Drive shallow_researcher, then deep_researcher with a harder question.
 # Writes evidence under artifacts/<run-id>/; does not delete it on exit.
 set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export AIQ_SERVER_URL="${AIQ_SERVER_URL:-http://127.0.0.1:8000}"
 
-QUESTION="${VERIFY_AIQ_QUESTION:-What is the capital of France?}"
+SHALLOW_QUESTION="${VERIFY_AIQ_QUESTION:-What is the capital of France?}"
+DEEP_QUESTION="${VERIFY_AIQ_DEEP_QUESTION:-What were the main technical causes of the Chernobyl disaster on 26 April 1986, and which reactor type was involved? Include a source section with the pages you used.}"
 RUN_ID="${VERIFY_AIQ_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
 OUT_DIR="${VERIFY_AIQ_ARTIFACT_DIR:-${SKILL_DIR}/artifacts/${RUN_ID}}"
 export VERIFY_AIQ_STATE_DIR="${VERIFY_AIQ_STATE_DIR:-/tmp/verify-aiq-${RUN_ID}}"
@@ -15,7 +16,10 @@ JOBS_FILE="${VERIFY_AIQ_STATE_DIR}/started-jobs.txt"
 mkdir -p "${OUT_DIR}" "${VERIFY_AIQ_STATE_DIR}"
 : >"${JOBS_FILE}"
 
-echo "${QUESTION}" >"${OUT_DIR}/question.txt"
+{
+  echo "shallow: ${SHALLOW_QUESTION}"
+  echo "deep: ${DEEP_QUESTION}"
+} >"${OUT_DIR}/question.txt"
 {
   echo "AIQ_SERVER_URL=${AIQ_SERVER_URL}"
   echo "run_id=${RUN_ID}"
@@ -25,12 +29,13 @@ echo "${QUESTION}" >"${OUT_DIR}/question.txt"
 run_one() {
   local agent_type="$1"
   local label="$2"
+  local question="$3"
   local submit_out report_out
   submit_out="${OUT_DIR}/${label}-submit.json"
   report_out="${OUT_DIR}/${label}-report.json"
 
   echo "=== ${label}: submitting ${agent_type} ===" >&2
-  python3 "${SKILL_DIR}/scripts/aiq.py" submit "${QUESTION}" "${agent_type}" \
+  python3 "${SKILL_DIR}/scripts/aiq.py" submit "${question}" "${agent_type}" \
     | tee "${submit_out}"
 
   local job_id
@@ -43,8 +48,8 @@ run_one() {
     | tee "${report_out}"
 }
 
-run_one "shallow_researcher" "shallow"
-run_one "deep_researcher" "deep"
+run_one "shallow_researcher" "shallow" "${SHALLOW_QUESTION}"
+run_one "deep_researcher" "deep" "${DEEP_QUESTION}"
 
 cat >"${OUT_DIR}/verdict-template.md" <<'EOF'
 # Reasonableness verdict

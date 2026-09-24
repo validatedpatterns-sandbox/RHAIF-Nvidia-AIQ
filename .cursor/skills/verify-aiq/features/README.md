@@ -11,8 +11,9 @@ NVIDIA AI-Q backend. Read this index before driving, then use the matching featu
   so `AIQ_SERVER_URL` / `VERIFY_AIQ_STATE_DIR` are exported.
 - Run `.cursor/skills/verify-aiq/scripts/doctor.sh` and require both
   `shallow_researcher` and `deep_researcher` in `agents`.
-- Use the locked question unless the feature file overrides it:
-  `What is the capital of France?`
+- Shallow uses `What is the capital of France?` unless `VERIFY_AIQ_QUESTION` is set.
+- Deep uses the Chernobyl causes question unless `VERIFY_AIQ_DEEP_QUESTION` is set.
+  See [deep research](./deep-research.md).
 - Never drive a backend or port-forward that this verification run did not start
   (shared cluster: do not cancel foreign jobs).
 
@@ -44,8 +45,8 @@ Each feature file starts with an H1 and one paragraph, then exactly four H2 sect
 
 ## Features
 
-- [Paired shallow + deep smoke](./paired-research-smoke.md) — same easy question on
-  both agents; reasonableness verdict for each.
+- [Paired shallow + deep smoke](./paired-research-smoke.md) — easy question for
+  shallow, harder cited question for deep; reasonableness verdict for each.
 - [Shallow research](./shallow-research.md) — quick cited answer via
   `shallow_researcher` (in-cluster Lightning).
 - [Deep research](./deep-research.md) — long-form report via `deep_researcher`
