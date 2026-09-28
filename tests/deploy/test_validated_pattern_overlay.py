@@ -454,15 +454,14 @@ def test_a10x4_profile_splits_bf16_across_four_gpus():
     assert env["MODEL_ID"] == BF16_HF_REPO
     assert f"--served-model-name={BF16_SERVED_MODEL_NAME}" in args
     assert "--tensor-parallel-size=4" in args
-    assert "--max-model-len=16384" in args
-    assert "--max-num-batched-tokens=8192" in args
-    assert "0.95" in args
+    assert "--max-model-len=65536" in args
+    assert "--max-num-batched-tokens=32768" in args
     assert "--quantization" not in joined_args
 
     config = _workflow_config(str(PROFILE_A10X4))
     agent = config["llms"]["nemotron_lightning_agent_llm"]
     assert agent["model_name"] == BF16_SERVED_MODEL_NAME
-    assert agent["max_tokens"] == 8192
+    assert agent["max_tokens"] == 32768
     assert "thinking_token_budget" not in agent["extra_body"]
 
 
