@@ -1,9 +1,11 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026, Red Hat, Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-# Four 24 GiB GPUs (g5.12xlarge: 4x A10G). Same BF16 checkpoint and token limits as gpu80.
-# Tensor parallel splits the ~60 GB weights across the four cards. One card cannot hold them.
-# If vLLM OOMs at 65536 context, lower --max-model-len and maxTokens together.
+# Four 24 GiB GPUs (g5.12xlarge: 4x A10G). Same BF16 checkpoint as gpu80.
+# Tensor parallel splits the ~60 GB weights across the four cards (~15 GiB each).
+# gpu80's 65536 context does not fit: at --gpu-memory-utilization=0.90 vLLM reports
+# negative KV-cache memory on a 23028 MiB A10G. 16384 context at 0.95 leaves room
+# for the cache; shallow maxTokens stays below that window.
 global:
   model:
     hfRepo: nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16
@@ -20,11 +22,11 @@ vllmServingRuntime:
     - "--model=/cache/models"
     - "--distributed-executor-backend=mp"
     - "--tensor-parallel-size=4"
-    - "--max-model-len=65536"
-    - "--max-num-batched-tokens=32768"
+    - "--max-model-len=16384"
+    - "--max-num-batched-tokens=8192"
     - "--dtype=auto"
     - "--gpu-memory-utilization"
-    - "0.90"
+    - "0.95"
     - "--enable-prefix-caching"
     - "--mamba-backend=flashinfer"
     - "--mamba-cache-mode=align"
@@ -35,5 +37,5 @@ vllmServingRuntime:
     - "qwen3_coder"
 workflowProfile:
   lightningAgent:
-    maxTokens: 32768
+    maxTokens: 8192
     thinkingTokenBudget: 0
