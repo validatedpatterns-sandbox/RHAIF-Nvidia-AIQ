@@ -58,6 +58,12 @@ oc wait --for=condition=Ready inferenceservice/vllm-inference-service -n aiq-inf
 oc get route -n aiq
 ```
 
+After that InferenceService is Ready, measure vLLM latency and throughput with a one-shot GuideLLM job. This is not part of `make install`:
+
+```bash
+./pattern.sh make bench-vllm
+```
+
 Open the frontend Route and try a shallow research query. For upgrade, uninstall,
 and troubleshooting, see
 [docs/source/deployment/validated-patterns.md](docs/source/deployment/validated-patterns.md).

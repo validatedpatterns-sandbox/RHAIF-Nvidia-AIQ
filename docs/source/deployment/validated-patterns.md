@@ -202,6 +202,19 @@ curl -sf http://vllm-inference-service-predictor.aiq-inference.svc.cluster.local
 If shallow research fails while `aiq-backend` is healthy, check that the InferenceService above is `Ready`
 and that `NVIDIA_API_KEY` is set for Ultra roles.
 
+### vLLM performance
+
+`./pattern.sh make bench-vllm` runs a one-shot GuideLLM Job against the in-cluster vLLM OpenAI endpoint. It is not part of `make install`. The target waits until `inferenceservice/vllm-inference-service` is Ready, then prints latency percentiles, time to first token, and tokens per second from the Job log.
+
+The default run is an extreme shallow-research case at concurrency `5`: `prompt_tokens=5856` and `output_tokens=579`. That is three times one shallow turn (1952 prompt tokens for the instruction text, a 7-token question, and one `web_search_tool` payload of 5 results capped at 1000 characters, plus 193 output tokens for a real shallow report). Combined length is 6435 tokens. Five such requests fill `--max-num-batched-tokens=32768` on `gpu80` and `a10x4`. Deep research calls NVIDIA API Catalog, not this vLLM service. Override concurrency with `GUIDELLM_RATE` (useful steps on this shape are 1, 2, and 5):
+
+```bash
+./pattern.sh make bench-vllm
+./pattern.sh make bench-vllm GUIDELLM_RATE=1
+```
+
+Other overrides: `GUIDELLM_DATA`, `GUIDELLM_MODEL` (default `nemotron-3.5-lightning-30b-a3b-bf16`), `GUIDELLM_PROCESSOR` (default `nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16`), and `GUIDELLM_JOB_TIMEOUT` (default `20m`, covering image pull and tokenizer download). A disconnected cluster must be able to pull `ghcr.io/vllm-project/guidellm:v0.5.0`.
+
 ### AI-Q health
 
 ```bash

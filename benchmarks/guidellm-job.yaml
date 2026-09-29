@@ -1,0 +1,81 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, Red Hat, Inc.
+# SPDX-License-Identifier: Apache-2.0
+# Applied by `make bench-vllm`. Not an Argo CD application.
+# Placeholders are substituted with envsubst; do not add other $ variables.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: guidellm-benchmark
+  namespace: ${INFERENCE_NAMESPACE}
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: guidellm
+          image: ${GUIDELLM_IMAGE}
+          imagePullPolicy: IfNotPresent
+          command: ["guidellm"]
+          args:
+            - benchmark
+            - run
+            - --target
+            - ${GUIDELLM_TARGET}
+            - --backend
+            - openai_http
+            - --model
+            - ${GUIDELLM_MODEL}
+            - --processor
+            - ${GUIDELLM_PROCESSOR}
+            - --data
+            - ${GUIDELLM_DATA}
+            - --profile
+            - concurrent
+            - --rate
+            - "${GUIDELLM_RATE}"
+            - --max-seconds
+            - "${GUIDELLM_MAX_SECONDS}"
+            # HTML report downloads a UI bundle that 301s and fails the Job.
+            # Console, JSON, and CSV still record the benchmark.
+            - --output-dir
+            - /results
+            - --outputs
+            - json
+            - --outputs
+            - csv
+            - --disable-console-interactive
+          env:
+            - name: HOME
+              value: /tmp
+            - name: HF_HOME
+              value: /tmp/hf
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface-secret
+                  key: hftoken
+                  optional: true
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: results
+              mountPath: /results
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: results
+          emptyDir: {}

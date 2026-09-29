@@ -66,3 +66,56 @@ create-gpu-machineset-azure: check-gpu-vm-size ## Create Azure GPU MachineSet (o
 
 # Ensure workload namespaces exist so RHOAI labels are present before wave 15.
 pattern-install: ensure-pattern-namespaces
+
+# One-shot GuideLLM client. Not a dependency of install or pattern-install.
+# Default shape is 3x one shallow-research turn on in-cluster vLLM.
+# One turn is 1952 prompt tokens (instructions, a 7-token question, and one
+# web_search_tool result of 5 documents capped at 1000 characters) and 193
+# output tokens (a real shallow report). The extreme case is 5856 in and 579 out.
+# Combined 6435 tokens fits gpu80/a10x4 (--max-model-len 65536).
+# Default concurrency is 5: about five of these requests fill --max-num-batched-tokens=32768.
+# Deep research does not call this vLLM service.
+INFERENCE_NAMESPACE ?= aiq-inference
+GUIDELLM_IMAGE ?= ghcr.io/vllm-project/guidellm:v0.5.0
+GUIDELLM_TARGET ?= http://vllm-inference-service-predictor.$(INFERENCE_NAMESPACE).svc.cluster.local
+GUIDELLM_MODEL ?= nemotron-3.5-lightning-30b-a3b-bf16
+GUIDELLM_PROCESSOR ?= nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16
+GUIDELLM_RATE ?= 5
+GUIDELLM_MAX_SECONDS ?= 120
+GUIDELLM_DATA ?= prompt_tokens=5856,output_tokens=579
+GUIDELLM_JOB_TIMEOUT ?= 20m
+
+.PHONY: bench-vllm
+bench-vllm: ## Benchmark the installed vLLM service with GuideLLM (not part of install)
+	oc wait --for=condition=Ready inferenceservice/vllm-inference-service -n $(INFERENCE_NAMESPACE) --timeout=2m
+	oc delete job guidellm-benchmark -n $(INFERENCE_NAMESPACE) --ignore-not-found --wait=true
+	INFERENCE_NAMESPACE='$(INFERENCE_NAMESPACE)' \
+	GUIDELLM_IMAGE='$(GUIDELLM_IMAGE)' \
+	GUIDELLM_TARGET='$(GUIDELLM_TARGET)' \
+	GUIDELLM_MODEL='$(GUIDELLM_MODEL)' \
+	GUIDELLM_PROCESSOR='$(GUIDELLM_PROCESSOR)' \
+	GUIDELLM_RATE='$(GUIDELLM_RATE)' \
+	GUIDELLM_MAX_SECONDS='$(GUIDELLM_MAX_SECONDS)' \
+	GUIDELLM_DATA='$(GUIDELLM_DATA)' \
+	envsubst '$${INFERENCE_NAMESPACE} $${GUIDELLM_IMAGE} $${GUIDELLM_TARGET} $${GUIDELLM_MODEL} $${GUIDELLM_PROCESSOR} $${GUIDELLM_RATE} $${GUIDELLM_MAX_SECONDS} $${GUIDELLM_DATA}' \
+		< benchmarks/guidellm-job.yaml | oc apply -f -
+	@ns='$(INFERENCE_NAMESPACE)'; \
+	oc wait --for=condition=complete job/guidellm-benchmark -n "$$ns" --timeout=$(GUIDELLM_JOB_TIMEOUT) & \
+	wait_pid=$$!; \
+	while kill -0 $$wait_pid 2>/dev/null; do \
+		failed=$$(oc get job guidellm-benchmark -n "$$ns" -o jsonpath='{.status.conditions[?(@.type=="Failed")].status}' 2>/dev/null || true); \
+		if [ "$$failed" = "True" ]; then \
+			kill $$wait_pid 2>/dev/null || true; \
+			wait $$wait_pid 2>/dev/null || true; \
+			oc logs job/guidellm-benchmark -n "$$ns" || true; \
+			exit 1; \
+		fi; \
+		sleep 5; \
+	done; \
+	if wait $$wait_pid; then \
+		oc logs job/guidellm-benchmark -n "$$ns"; \
+	else \
+		status=$$?; \
+		oc logs job/guidellm-benchmark -n "$$ns" || true; \
+		exit $$status; \
+	fi
