@@ -189,8 +189,9 @@ spec:
               valueFrom:
                 secretKeyRef: {name: huggingface-secret, key: hftoken, optional: true}
           resources:
-            requests: {cpu: "1", memory: 1Gi}
-            limits: {cpu: "4", memory: 4Gi}
+            # Concurrent BF16 transfers exceeded the former 4Gi limit on fresh installs.
+            requests: {cpu: "1", memory: 4Gi}
+            limits: {cpu: "4", memory: 16Gi}
           volumeMounts:
             - {name: scripts, mountPath: /scripts, readOnly: true}
             - {name: ca, mountPath: /etc/aiq-ca, readOnly: true}
