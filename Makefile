@@ -9,9 +9,9 @@ include Makefile-common
 INSTALL_PLAYBOOK := ansible/playbooks/install.yaml
 LOAD_SECRETS_PLAYBOOK := ansible/playbooks/load-secrets.yaml
 
-# Serving profile. Unset uses main.variant (nvfp4) from values-global.yaml.
+# Default matches main.variant in values-global.yaml: one four-L4 AWS worker.
 # PROFILE=bf16 exports TARGET_VARIANT so the utility container installs that variant.
-PROFILE ?=
+PROFILE ?= bf16-tp4
 
 ifneq ($(PROFILE),)
 ifeq ($(wildcard variants/$(PROFILE)/values-$(PROFILE).yaml),)
@@ -27,7 +27,7 @@ export TARGET_VARIANT := $(PROFILE)
 include profiles/$(PROFILE).mk
 endif
 
-# Phase 0 GPU worker provisioning (mirrors validatedpatterns/rag-llm-gitops).
+# Phase 0 fallback values for single-GPU profiles; the selected .mk overrides these.
 GPU_SKU_REQUIREMENT ?= an 80 GiB GPU SKU
 ifneq ($(GPU_INSTANCE_TYPE_REQUIRED),true)
 GPU_INSTANCE_TYPE ?= g6.2xlarge

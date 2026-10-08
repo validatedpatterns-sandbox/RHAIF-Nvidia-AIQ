@@ -11,13 +11,13 @@ global:
     disabled: false
   secretStore:
     backend: vault
-  # Default checkpoint is the NVFP4 profile. profiles/bf16.yaml overrides this.
-  hardwareProfile: nvfp4
+  # Default is BF16 with TP=4 on one four-L4 node; profiles override these values.
+  hardwareProfile: bf16-tp4
   model:
-    hfRepo: nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4
-    revision: bee7596271d1495f6992ae224aefde4410e816b8
-    size: 80Gi
-    servedName: nemotron-3.5-lightning-30b-a3b
+    hfRepo: nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16
+    revision: a9904d24bcc1d289a1950fa9d2b978c47cf903b9
+    size: 150Gi
+    servedName: nemotron-3.5-lightning-30b-a3b-bf16
   # Hybrid Lightning requires RHOAI 3.5+ (vLLM 0.24+). Image digest matches rhods-operator.3.5.1.
   rhoai:
     version: "3.5.1"
@@ -31,13 +31,13 @@ global:
   serving:
     replicas: 1
     nodesPerReplica: 1
-    gpusPerNode: 1
-    tensorParallel: 1
+    gpusPerNode: 4
+    tensorParallel: 4
     pipelineParallel: 1
     runtimeImage: "" # empty uses the RHOAI baseline digest above
-    cpu: "4"
-    memory: 24Gi
-    shmSize: 2Gi
+    cpu: "16"
+    memory: 64Gi
+    shmSize: 8Gi
     startupSeconds: 3600
     nodeSelector: {}
     nodeNames: [] # Optional serving/cache-gate allowlist when labels select a larger pool.
@@ -71,14 +71,14 @@ global:
   modelCache:
     nodeSelector:
       aiq.rhai.redhat.com/model-cache: "true"
-    capacity: 200Gi
+    capacity: 350Gi
     nodeGroup: aiq-models
     jobNamespace: redhat-ods-applications # RHOAI's module forces jobs into its own namespace.
     retainedRevisions: [] # entries: {hfRepo, revision, size}; retain rollback copies
   # Optional StorageClass for the retained legacy PVC.
   storageClass: ""
 main:
-  variant: nvfp4
+  variant: bf16-tp4
   multiSourceConfig:
     enabled: true
     clusterGroupChartVersion: 0.9.*

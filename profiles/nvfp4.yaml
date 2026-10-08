@@ -8,6 +8,11 @@ global:
   serving:
     gpusPerNode: 1
     tensorParallel: 1
+    cpu: "4"
+    memory: 24Gi
+    shmSize: 2Gi
+  modelCache:
+    capacity: 200Gi
 vllmServingRuntime:
   args:
   - --max-model-len=4096

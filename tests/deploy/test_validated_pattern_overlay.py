@@ -87,11 +87,15 @@ def _write_values_file(tmp_path: Path, values: dict) -> str:
 
 def _render_vllm_chart(tmp_path: Path) -> list[dict]:
     values_global = yaml.safe_load(VALUES_GLOBAL.read_text(encoding="utf-8"))
+    profile = values_global["main"]["variant"]
     return _render_helm_chart(
         VLLM_CHART,
         "vllm-inference-service",
         "aiq-inference",
         _write_values_file(tmp_path, values_global),
+        str(REPO_ROOT / "variants" / profile / f"values-{profile}.yaml"),
+        str(REPO_ROOT / "variants" / profile / "values-AWS.yaml"),
+        str(REPO_ROOT / "profiles" / f"{profile}.yaml"),
     )
 
 
@@ -133,11 +137,14 @@ def test_hybrid_config_chart_file_is_valid_yaml():
 
 
 def test_hybrid_workflow_model_name_matches_values_global():
-    config = _workflow_config(str(VALUES_GLOBAL))
     values_global = yaml.safe_load(VALUES_GLOBAL.read_text(encoding="utf-8"))
+    profile = REPO_ROOT / "profiles" / f"{values_global['main']['variant']}.yaml"
+    config = _workflow_config(str(VALUES_GLOBAL), str(profile))
     served_name = values_global["global"]["model"]["servedName"]
     assert config["llms"]["nemotron_lightning_intent_llm"]["model_name"] == served_name
     assert config["llms"]["nemotron_lightning_agent_llm"]["model_name"] == served_name
+    assert config["llms"]["nemotron_lightning_agent_llm"]["max_tokens"] == 32768
+    assert "thinking_token_budget" not in config["llms"]["nemotron_lightning_agent_llm"]["extra_body"]
 
 
 def test_workflow_config_chart_renders_hybrid_configmap():
@@ -208,16 +215,16 @@ def test_pattern_values_target_umbrella_chart_and_serving_stack():
     assert values_global["global"]["singleArgoCD"] is True
     assert values_global["global"]["secretLoader"]["disabled"] is False
     assert values_global["global"]["secretStore"]["backend"] == "vault"
-    assert values_global["global"]["hardwareProfile"] == "nvfp4"
-    assert values_global["global"]["model"]["hfRepo"] == HF_REPO
-    assert values_global["global"]["model"]["servedName"] == SERVED_MODEL_NAME
+    assert values_global["global"]["hardwareProfile"] == "bf16-tp4"
+    assert values_global["global"]["model"]["hfRepo"] == BF16_HF_REPO
+    assert values_global["global"]["model"]["servedName"] == BF16_SERVED_MODEL_NAME
     assert values_global["global"]["rhoai"]["version"] == "3.5.1"
     assert values_global["global"]["rhoai"]["vllmImage"].startswith(
         "registry.redhat.io/rhaii/vllm-cuda-rhel9@sha256:"
     )
     assert values_global["global"]["inference"]["namespace"] == "aiq-inference"
     assert values_global["global"]["storageClass"] == ""
-    assert values_global["main"]["variant"] == "nvfp4"
+    assert values_global["main"]["variant"] == "bf16-tp4"
     assert "clusterGroupName" not in values_global["main"]
 
     applications = values_global["clusterGroup"]["applications"]
@@ -276,17 +283,24 @@ def test_pattern_values_target_umbrella_chart_and_serving_stack():
 def test_vllm_chart_uses_published_cache_and_retains_legacy_pvc(tmp_path: Path):
     manifests = _render_vllm_chart(tmp_path)
     pvc = next(m for m in manifests if m["kind"] == "PersistentVolumeClaim")
-    assert pvc["spec"]["resources"]["requests"]["storage"] == "80Gi"
+    assert pvc["spec"]["resources"]["requests"]["storage"] == "150Gi"
     assert "Prune=false" in pvc["metadata"]["annotations"]["argocd.argoproj.io/sync-options"]
     service = next(m for m in manifests if m["kind"] == "InferenceService")
     cache = next(m for m in manifests if m["kind"] == "LocalModelCache")
     runtime = next(m for m in manifests if m["kind"] == "ServingRuntime")
     assert service["spec"]["predictor"]["model"]["storageUri"] == cache["spec"]["sourceModelUri"]
-    assert HF_REPO in cache["spec"]["sourceModelUri"]
+    assert BF16_HF_REPO in cache["spec"]["sourceModelUri"]
     assert "initContainers" not in service["spec"]["predictor"]
     assert all("persistentVolumeClaim" not in v for v in runtime["spec"]["volumes"])
     container = runtime["spec"]["containers"][0]
-    assert f"--served-model-name={SERVED_MODEL_NAME}" in container["args"]
+    assert f"--served-model-name={BF16_SERVED_MODEL_NAME}" in container["args"]
+    assert "--tensor-parallel-size=4" in container["args"]
+    assert "--pipeline-parallel-size=1" in container["args"]
+    assert "--max-model-len=65536" in container["args"]
+    predictor = service["spec"]["predictor"]
+    assert predictor["minReplicas"] == predictor["maxReplicas"] == 1
+    assert predictor["model"]["resources"]["requests"]["nvidia.com/gpu"] == "4"
+    assert predictor["model"]["resources"]["limits"]["nvidia.com/gpu"] == "4"
     assert "--model=/mnt/models" in container["args"]
     assert all(e["name"] != "HF_TOKEN" for e in container["env"])
     assert next(e["value"] for e in container["env"] if e["name"] == "HF_HUB_OFFLINE") == "1"
@@ -448,7 +462,7 @@ def test_bf16_tp4_profile_splits_across_four_gpus():
 
 
 def test_nvfp4_profile_workflow_keeps_small_token_budget():
-    config = _workflow_config(str(PROFILE_NVFP4))
+    config = _workflow_config(str(VALUES_GLOBAL), str(PROFILE_NVFP4))
     agent = config["llms"]["nemotron_lightning_agent_llm"]
     assert agent["model_name"] == SERVED_MODEL_NAME
     assert agent["max_tokens"] == 1536

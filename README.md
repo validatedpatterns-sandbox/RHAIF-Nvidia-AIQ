@@ -42,25 +42,38 @@ cp values-secret.yaml.template ~/values-secret-aiq.yaml
 
 ### Provision a GPU node (required before install)
 
+On AWS, the default is **one `g6.12xlarge` worker with four NVIDIA L4 GPUs**,
+48 vCPUs, 192 GiB RAM, and a 500 GiB root volume:
+
+```bash
+./pattern.sh make create-gpu-machineset
+```
+
 See [GPU_provisioning.md](GPU_provisioning.md) for AWS/Azure MachineSet steps and
 for labeling an existing GPU node.
-Prepare local cache disk and apply the cache-node label described in the
+Verify at least 350 GiB of usable model-cache disk at `/var/lib/kserve/models`
+and apply the cache-node label described in the
 [storage prerequisites](docs/source/deployment/model-storage-and-serving.md#prepare-the-platform)
 before installation.
 
 ### Deploy the pattern
 
 ```bash
+# Default: BF16 across four L4 GPUs on one node (bf16-tp4):
 ./pattern.sh make install
-# BF16 / catalog token limits:
+# Single-GPU NVFP4 / small token budgets:
+./pattern.sh make install PROFILE=nvfp4
+# BF16 on one supported 80 GiB GPU:
 ./pattern.sh make install PROFILE=bf16
-# Same BF16 limits, tensor-parallel across 4 GPUs:
-./pattern.sh make install PROFILE=bf16-tp4
 # B200 profile:
 ./pattern.sh make install PROFILE=b200
 ```
 
-`PROFILE` selects `variants/<name>/` and `profiles/<name>.yaml`. The default is `nvfp4` (NVFP4 checkpoint, small token budgets). `bf16-tp4` is the `bf16` checkpoint with `--tensor-parallel-size=4`.
+`PROFILE` selects `variants/<name>/` and `profiles/<name>.yaml`. The default is
+`bf16-tp4`: one serving replica of Nemotron 3.5 Lightning BF16, using all four
+GPUs on one node with TP=4 and PP=1. It has a 65,536-token context limit and a
+32,768-token shallow output budget. An explicit `PROFILE=bf16-tp4` selects the
+same configuration. GPU provisioning is a separate step from `make install`.
 
 ### Check readiness
 

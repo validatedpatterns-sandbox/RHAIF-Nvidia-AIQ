@@ -77,8 +77,9 @@ For an AWS cluster with Machine API, the starting command is:
   GPU_COUNT=4 GPU_VCPU=48 GPU_MEMORY_MB=196608 GPU_ROOT_VOLUME_SIZE=500
 ```
 
-Pass an approved `OVERRIDE_ZONE` only when needed. Explicit overrides matter:
-the generic default provisions one L4, and `bf16-tp4.mk` has a different GPU SKU.
+Pass an approved `OVERRIDE_ZONE` only when needed. These values match the
+repository defaults: `bf16-tp4`, one `g6.12xlarge` worker with four L4 GPUs,
+and a 500 GiB root volume. Keep explicit overrides in the proposal for review.
 Inspect existing Machines/MachineSets so a retry cannot silently create duplicate
 workers. On a non-AWS cluster or one without Machine API, explain why this AWS
 worker cannot simply be attached and ask the developer how to proceed; do not

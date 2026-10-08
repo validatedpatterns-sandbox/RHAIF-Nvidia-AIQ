@@ -17,6 +17,8 @@ global:
     shmSize: 4Gi
     ncclEnv:
       NCCL_DEBUG: INFO
+  modelCache:
+    capacity: 200Gi
 vllmServingRuntime:
   args:
   - --max-model-len=4096

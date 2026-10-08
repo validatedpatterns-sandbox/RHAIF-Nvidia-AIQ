@@ -19,8 +19,9 @@ together after validation; the preflight gate rejects an unreviewed version.
 
 ## Settings and presets
 
-Choose the existing preset with `./pattern.sh make install PROFILE=bf16-tp4` (or
-`nvfp4`, the default, `bf16`, or `b200`). Presets use the existing model IDs and
+`./pattern.sh make install` defaults to `bf16-tp4`: one node with four L4 GPUs
+(AWS `g6.12xlarge`), TP=4, PP=1, and one replica. Choose another preset with
+`PROFILE=nvfp4`, `PROFILE=bf16`, or `PROFILE=b200`. Presets use the existing model IDs and
 served names, with profile-specific serving limits and shallow token budgets.
 All presets retain the remote deep-research calls. The BF16 presets share the
 same model revision. The RHOAI runtime digest now

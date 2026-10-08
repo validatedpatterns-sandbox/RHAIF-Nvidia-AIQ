@@ -9,9 +9,12 @@
   gather_facts: false
   become: false
   vars:
-    gpu_instance_type: g6.2xlarge
+    gpu_instance_type: g6.12xlarge
     gpu_replicas: 1
-    gpu_count: 1
+    gpu_count: 4
+    gpu_vcpu: 48
+    gpu_memory_mb: 196608
+    gpu_root_volume_size: 500
     override_zone: ""
     usable_regions:
       - us-east-1

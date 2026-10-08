@@ -29,13 +29,15 @@ the installer creates them in Vault. Add a Hugging Face token only if required.
 
 The cluster needs Machine API and AWS quota/capacity for one
 [`g6.12xlarge` worker with four NVIDIA L4 GPUs](https://docs.aws.amazon.com/ec2/latest/instancetypes/ac.html).
-Use `bf16-tp4` for tensor parallelism across those four GPUs.
+The default `bf16-tp4` profile uses tensor parallelism across those four GPUs.
+`./pattern.sh make create-gpu-machineset` defaults to this worker with a 500 GiB
+root volume; `./pattern.sh make install` defaults to the matching serving profile.
 
 > Provision one AWS OpenShift GPU worker with four NVIDIA L4 GPUs
 > (`g6.12xlarge`). Follow `GPU_provisioning.md`, use a 500 GiB root volume,
 > prepare and verify 350 GiB of usable model-cache disk at
 > `/var/lib/kserve/models`, and apply the required GPU/cache labels and taint.
-> Then run `./pattern.sh make install PROFILE=bf16-tp4` on this cluster.
+> Then run `./pattern.sh make install` on this cluster (default `bf16-tp4`).
 
 ### Case B: Use four existing B200 nodes, eight GPUs each
 

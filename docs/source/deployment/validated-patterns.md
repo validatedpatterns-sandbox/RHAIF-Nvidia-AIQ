@@ -13,13 +13,13 @@ The pattern ships the AI-Q umbrella Helm chart at `charts/aiq2-web` (NGC `aiq-ag
 
 ## Deployment profile
 
-The Validated Pattern ships hybrid Lightning (GPU stack + in-cluster vLLM) with selectable serving profiles. Profiles describe checkpoint and parallelism; `b200` selects a four-node B200 preset. `main.variant` in `values-global.yaml` defaults to `nvfp4`. `./pattern.sh make install PROFILE=<name>` sets `TARGET_VARIANT` and loads `variants/<name>/values-<name>.yaml`, which points vLLM and the workflow chart at `profiles/<name>.yaml`.
+The Validated Pattern ships hybrid Lightning (GPU stack + in-cluster vLLM) with selectable serving profiles. Profiles describe checkpoint and parallelism; `b200` selects a four-node B200 preset. `main.variant` in `values-global.yaml` and Make's `PROFILE` default to `bf16-tp4`: one node with four L4 GPUs. `./pattern.sh make install PROFILE=<name>` sets `TARGET_VARIANT` and loads `variants/<name>/values-<name>.yaml`, which points vLLM and the workflow chart at `profiles/<name>.yaml`.
 
 | Profile | Install | Checkpoint | Shallow Lightning | Example worker |
 |---|---|---|---|---|
-| `nvfp4` (default) | `./pattern.sh make install` | NVFP4 (`nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4`) | `max_tokens: 1536`, `thinking_token_budget: 512`, vLLM `--max-model-len=4096` | 1× L4 24 GiB (`g6.2xlarge`) |
+| `nvfp4` | `./pattern.sh make install PROFILE=nvfp4` | NVFP4 (`nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4`) | `max_tokens: 1536`, `thinking_token_budget: 512`, vLLM `--max-model-len=4096` | 1× L4 24 GiB (`g6.2xlarge`) |
 | `bf16` | `./pattern.sh make install PROFILE=bf16` | BF16 (`nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16`) | `max_tokens: 32768`, no thinking budget, vLLM `--max-model-len=65536` | 1× A100 or H100 80 GiB |
-| `bf16-tp4` | `./pattern.sh make install PROFILE=bf16-tp4` | same BF16 checkpoint as `bf16` | same token limits as `bf16`, vLLM `--tensor-parallel-size=4` | 4× 24 GiB (`g5.12xlarge`) |
+| `bf16-tp4` (default) | `./pattern.sh make install` | same BF16 checkpoint as `bf16` | same token limits as `bf16`, vLLM `--tensor-parallel-size=4` | 4× L4 on one `g6.12xlarge` worker |
 
 `./pattern.sh make install PROFILE=b200` serves the same BF16 checkpoint with
 four replicas on four existing eight-B200 nodes (32 GPUs total): one replica per
@@ -70,12 +70,14 @@ Async jobs report `job_status.status: success` when finished (not `completed`).
 
 ### GPU workers (Phase 0, hybrid profile)
 
-The hybrid Lightning profile requires one GPU worker before OpenShift AI and vLLM can serve the model. On AWS clusters with Machine API:
+The default hybrid Lightning profile requires one worker with four L4 GPUs before OpenShift AI and vLLM can serve the model. On AWS clusters with Machine API:
 
 ```bash
 ./pattern.sh make create-gpu-machineset
-# or explicitly:
-./pattern.sh make create-gpu-machineset GPU_INSTANCE_TYPE=g6.2xlarge GPU_REPLICAS=1
+# Equivalent explicit profile: one g6.12xlarge, four L4 GPUs, 500 GiB root disk:
+./pattern.sh make create-gpu-machineset PROFILE=bf16-tp4
+# Optional single-L4 NVFP4 profile (install with PROFILE=nvfp4 too):
+./pattern.sh make create-gpu-machineset PROFILE=nvfp4 GPU_ROOT_VOLUME_SIZE=500
 # 80 GiB BF16 profile (pass the SKU you have; there is no single default):
 ./pattern.sh make create-gpu-machineset PROFILE=bf16 GPU_INSTANCE_TYPE=<80GiB-SKU>
 ```
@@ -88,10 +90,10 @@ If AWS returns `InsufficientInstanceCapacity`, retry with a different availabili
 ./pattern.sh make create-gpu-machineset OVERRIDE_ZONE=us-east-2a
 ```
 
-On Azure clusters with Machine API, the playbook defaults to **two** GPU workers (`GPU_REPLICAS_AZURE=2`). Use one worker for hybrid Lightning:
+On Azure clusters with Machine API, `bf16-tp4` requires an explicit compatible four-GPU SKU. The playbook retains **two** replicas by default (`GPU_REPLICAS_AZURE=2`); select one for the default serving layout:
 
 ```bash
-./pattern.sh make create-gpu-machineset-azure GPU_REPLICAS_AZURE=1
+./pattern.sh make create-gpu-machineset-azure GPU_VM_SIZE=<four-GPU-SKU> GPU_REPLICAS_AZURE=1
 ```
 
 Verify the GPU node:
@@ -105,7 +107,7 @@ Phase 0 is complete when at least one GPU worker is `Ready`, labeled `node-role.
 
 See [GPU_provisioning.md](https://github.com/validatedpatterns-sandbox/RHAIF-Nvidia-AIQ/blob/main/GPU_provisioning.md) for Azure defaults, manual MachineSet, bare-metal, and verification steps. Clusters without Machine API must add GPU nodes outside GitOps.
 
-The default `nvfp4` profile uses **1× `g6.2xlarge`** (NVIDIA L4, 24 GiB VRAM) with the **NVFP4** checkpoint. RustFS stores the complete pinned snapshot; each serving node has its own warm cache. Model reservations are **80Gi** for NVFP4 and **150Gi** for BF16, with cache capacities of **200Gi** and **350Gi** respectively to accommodate rollback. Prepare local disk and label eligible nodes before installation. See [model storage and serving](model-storage-and-serving.md) for prerequisites, replica/distributed settings, storage classes, and retained-PVC migration.
+The default `bf16-tp4` profile uses **one `g6.12xlarge` worker with four NVIDIA L4 GPUs**, a **500 GiB root volume**, and the **BF16** checkpoint (one replica, TP=4, PP=1). RustFS stores the complete pinned snapshot; each serving node has its own warm cache. Model reservations are **80Gi** for NVFP4 and **150Gi** for BF16, with cache capacities of **200Gi** and **350Gi** respectively to accommodate rollback. Verify usable local disk and label eligible nodes before installation; root volume size alone does not prove that the cache has enough free space. See [model storage and serving](model-storage-and-serving.md) for prerequisites, replica/distributed settings, storage classes, and retained-PVC migration.
 
 Default destination namespace is `aiq` (application) and `aiq-inference` (vLLM). Override `clusterGroup.namespaces` and each application's `namespace` in `values-global.yaml` only if your cluster requires different project names.
 
@@ -174,7 +176,7 @@ wave 20:  vllm-inference-service (prerequisites, publication, cache readiness, s
 wave 30:  aiq (umbrella Helm chart)
 ```
 
-`eso-bindings` applications set `SkipDryRunOnMissingResource=true` so the first sync can wait for the ExternalSecret CRD. `clusterGroup.isHubCluster: true` selects kubernetes-auth `mountPath: hub` and role `hub-role` for every serving profile. The default Pattern cluster group name is `nvfp4`.
+`eso-bindings` applications set `SkipDryRunOnMissingResource=true` so the first sync can wait for the ExternalSecret CRD. `clusterGroup.isHubCluster: true` selects kubernetes-auth `mountPath: hub` and role `hub-role` for every serving profile. The default Pattern cluster group name is `bf16-tp4`.
 
 `make install` always provisions OpenShift GitOps (`vp-gitops`) when it is missing. `values-global.yaml` sets `global.singleArgoCD: true` so clustergroup Applications are created in that instance instead of a second Argo CD in `aiq-prod`.
 

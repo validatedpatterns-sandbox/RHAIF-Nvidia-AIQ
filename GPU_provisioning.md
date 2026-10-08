@@ -5,9 +5,9 @@ SPDX-License-Identifier: Apache-2.0
 
 # GPU worker provisioning (Phase 0)
 
-Phase 0 prepares GPU worker nodes for a serving profile. Operator install and vLLM serving charts are part of the GitOps path, not Phase 0. Default `PROFILE` is `nvfp4`. `PROFILE=bf16` requires you to pass an 80 GiB `GPU_INSTANCE_TYPE` (AWS) or `GPU_VM_SIZE` (Azure).
+Phase 0 prepares GPU worker nodes for a serving profile. Operator install and vLLM serving charts are part of the GitOps path, not Phase 0. Default `PROFILE` is `bf16-tp4`. `PROFILE=bf16` requires you to pass an 80 GiB `GPU_INSTANCE_TYPE` (AWS) or `GPU_VM_SIZE` (Azure).
 
-This document mirrors [validatedpatterns/rag-llm-gitops GPU_provisioning.md](https://github.com/validatedpatterns/rag-llm-gitops/blob/main/GPU_provisioning.md). The hybrid Lightning `nvfp4` profile defaults to **one** `g6.2xlarge` AWS worker (NVIDIA L4). Adjust with Makefile overrides when your quota or model sizing differs.
+This document follows [validatedpatterns/rag-llm-gitops GPU_provisioning.md](https://github.com/validatedpatterns/rag-llm-gitops/blob/main/GPU_provisioning.md), with AI-Q defaults. The hybrid Lightning `bf16-tp4` profile defaults to **one `g6.12xlarge` AWS worker with four NVIDIA L4 GPUs** and a 500 GiB root volume. Adjust with Makefile overrides when your quota or model sizing differs.
 
 ## When to use Ansible MachineSet provisioning
 
@@ -27,26 +27,31 @@ Defaults:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `GPU_INSTANCE_TYPE` | `g6.2xlarge` | EC2 GPU instance type |
+| `PROFILE` | `bf16-tp4` | Serving profile and worker defaults |
+| `GPU_INSTANCE_TYPE` | `g6.12xlarge` | EC2 GPU instance type |
 | `GPU_REPLICAS` | `1` | MachineSet replica count |
+| `GPU_COUNT` | `4` | GPUs per worker |
+| `GPU_VCPU` | `48` | vCPUs per worker |
+| `GPU_MEMORY_MB` | `196608` | RAM metadata (192 GiB) |
+| `GPU_ROOT_VOLUME_SIZE` | `500` | Root gp3 volume in GiB |
 | `OVERRIDE_ZONE` | _(empty)_ | Force an AWS availability zone (for example `us-east-2b`) when capacity fails |
 
-Example with a larger node when capacity allows:
+For the optional single-L4 NVFP4 profile:
 
 ```bash
-./pattern.sh make create-gpu-machineset GPU_REPLICAS=1 GPU_INSTANCE_TYPE=g6.12xlarge
+./pattern.sh make create-gpu-machineset PROFILE=nvfp4 GPU_ROOT_VOLUME_SIZE=500
+# After preparing at least 200 GiB of usable model-cache disk:
+./pattern.sh make install PROFILE=nvfp4
 ```
 
 For two four-L4 workers with sufficient BF16 cache disk:
 
 ```bash
-./pattern.sh make create-gpu-machineset PROFILE=bf16-tp4 \
-  GPU_REPLICAS=2 GPU_INSTANCE_TYPE=g6.12xlarge \
-  GPU_COUNT=4 GPU_VCPU=48 GPU_MEMORY_MB=196608 GPU_ROOT_VOLUME_SIZE=500
+./pattern.sh make create-gpu-machineset GPU_REPLICAS=2
 ```
 
-`GPU_ROOT_VOLUME_SIZE` controls the root gp3 volume in GiB (default 150).
-The hardware metadata defaults describe the default single-GPU instance; override
+`GPU_ROOT_VOLUME_SIZE` controls the root gp3 volume in GiB (default 500 for `bf16-tp4`).
+The hardware metadata defaults describe the selected profile's instance; override
 them together when choosing a different instance. Verify free disk on each node
 before applying the model-cache label. Provisioning two nodes does not itself
 select serving data parallelism or pipeline parallelism.
@@ -92,19 +97,22 @@ before selecting replicated or distributed layouts.
 
 ## Provision GPU workers on Azure
 
+The default `bf16-tp4` profile requires an explicit Azure SKU with four compatible
+GPUs on one node; the generic single-T4 VM cannot run it. Select a suitable size:
+
 ```bash
-./pattern.sh make create-gpu-machineset-azure
+./pattern.sh make create-gpu-machineset-azure GPU_VM_SIZE=<four-GPU-SKU> GPU_REPLICAS_AZURE=1
 ```
 
-Defaults (mirrors rag-llm-gitops; Azure playbook uses **two** replicas by default):
+Azure provisioning settings (the playbook retains **two** replicas unless overridden):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `GPU_VM_SIZE` | `Standard_NC8as_T4_v3` | Azure GPU VM SKU |
+| `GPU_VM_SIZE` | Required for `bf16-tp4` | Azure GPU VM SKU; generic fallback for profiles without a SKU requirement is `Standard_NC8as_T4_v3` |
 | `GPU_REPLICAS_AZURE` | `2` | MachineSet replica count |
 | `OVERRIDE_ZONE` | _(empty)_ | Force an availability zone when capacity fails |
 
-Override `GPU_VM_SIZE`, `GPU_REPLICAS_AZURE`, or `OVERRIDE_ZONE` as needed. For a single Azure GPU worker (hybrid Lightning minimum), pass `GPU_REPLICAS_AZURE=1`. Pick an NC-series size with enough VRAM for your target model when you move past Phase 0.
+Override `GPU_VM_SIZE`, `GPU_REPLICAS_AZURE`, or `OVERRIDE_ZONE` as needed. For the default single-node serving layout, pass `GPU_REPLICAS_AZURE=1`. Match both GPU count and VRAM to the serving profile.
 
 ## Manual MachineSet (AWS reference)
 
@@ -137,9 +145,9 @@ The GPU Operator reconciles a single cluster-wide policy. On clusters that alrea
 
 ## Install order with the Validated Pattern
 
-**Hybrid Lightning (default `PROFILE=nvfp4`):**
+**Hybrid Lightning (default `PROFILE=bf16-tp4`):**
 
-1. **Phase 0 (this doc).** Provision GPU workers: AWS `GPU_REPLICAS=1` (default); Azure `GPU_REPLICAS_AZURE=2` (default) or `1` for a single hybrid-Lightning worker.
+1. **Phase 0 (this doc).** Provision one four-L4 AWS worker (default); on Azure select a compatible four-GPU SKU and pass `GPU_REPLICAS_AZURE=1`.
 2. **Namespaces + secrets.** `./pattern.sh make ensure-pattern-namespaces` then `./pattern.sh make load-secrets`.
 3. **Install.** `./pattern.sh make install` — syncs NFD/GPU config, OpenShift AI (KServe), vLLM, then AI-Q.
 
