@@ -21,7 +21,7 @@ approval points below cover additional decisions agreed with the developer.
 
 ## 1. Discover the cluster and NVIDIA GPUs
 
-Read [QUICKSTART.md](../../../QUICKSTART.md) and the
+Read [README.md](../../../README.md) and the
 [deployment guide](../../../docs/source/deployment/validated-patterns.md).
 Record the cluster context/API, cloud platform, repository remote and branch,
 and local revision/dirty status. Verify `oc` authentication and sufficient

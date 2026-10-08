@@ -32,7 +32,7 @@ aiq:
               mountPath: /db-init
               readOnly: true
         - name: wait-for-local-model
-          image: nvcr.io/nvidia/blueprint/aiq-agent:2.2.0
+          image: nvcr.io/nvidia/blueprint/aiq-agent:2.2.1
           command: [python, -c]
           args:
             - |

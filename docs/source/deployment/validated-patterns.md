@@ -9,7 +9,7 @@ Red Hat authored this Validated Pattern wrapper for deploying AI-Q on OpenShift
 through the [Validated Patterns](https://validatedpatterns.io/learn/) GitOps framework.
 Scaffolding was generated with [patternizer](https://validatedpatterns.io/learn/creating-patterns-with-patternizer/). This path is single-cluster only: no ACM hub/spoke. HashiCorp Vault stores secret values. The External Secrets Operator copies them into Kubernetes Secrets named `aiq-credentials` and `huggingface-secret`.
 
-The pattern ships the AI-Q umbrella Helm chart at `charts/aiq2-web` (NGC `aiq-agent` / `aiq-frontend` images) and applies OpenShift value overlays under `overrides/` (see `overrides/README.md`). Blueprint application source lives in the [NVIDIA AI-Q repository](https://github.com/NVIDIA-AI-Blueprints/aiq), not in this pattern repo.
+The pattern ships the AI-Q umbrella Helm chart at `charts/aiq2-web` (NGC `aiq-agent:2.2.1` / `aiq-frontend:2.2.1` images) and applies OpenShift value overlays under `overrides/` (see `overrides/README.md`). Blueprint application source lives in the [NVIDIA AI-Q repository](https://github.com/NVIDIA-AI-Blueprints/aiq), not in this pattern repo.
 
 ## Deployment profile
 
@@ -39,6 +39,20 @@ SQL errors block startup. Keep both containers when overriding
 To add a profile, add `profiles/<name>.yaml` (vLLM args, GPU count, workflow token fields, optional `global.model`), `variants/<name>/values-<name>.yaml` (`clusterGroup.name` and `global.hardwareProfile`), and `profiles/<name>.mk` (Phase 0 GPU defaults or required-SKU flags; Make always includes it when `PROFILE` is set). A top-level `placeholder:` key makes `make install` refuse the profile.
 
 Workflow YAML is mounted from ConfigMap `aiq-workflow-config` (`charts/aiq-workflow-config/files/config_hybrid_lightning.yml`). Shallow `max_tokens`, `thinking_token_budget`, and the in-cluster `model_name` are rendered from the selected profile.
+
+### Shallow citation behavior
+
+The workflow explicitly sets `shallow_research_agent.enforce_citations: false`,
+supported by AI-Q 2.2.1. Citation verification and sanitization still run, but an
+answer with incomplete citation integrity is returned instead of failing the
+request or invoking the strict citation-repair call. This prevents that repair's
+60-second timeout from rejecting an otherwise generated shallow answer; it does
+not guarantee verified citations or eliminate provider/search failures.
+
+Set `enforce_citations: true` only when citations must be mandatory: that restores
+strict repair and failure behavior. Deep research keeps
+`enable_citation_verification: true`. See the
+[upstream release notes](https://github.com/NVIDIA-AI-Blueprints/aiq/releases/tag/v2.2.1).
 
 ### Lightning thinking and token budgets
 

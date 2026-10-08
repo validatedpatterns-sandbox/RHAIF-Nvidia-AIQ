@@ -4,5 +4,5 @@ apiVersion: v2
 name: aiq-workflow-config
 description: ConfigMap for the OpenShift hybrid Lightning workflow YAML (not present in NGC images)
 type: application
-version: 0.1.0
-appVersion: "2.2.0"
+version: 0.1.1
+appVersion: "2.2.1"

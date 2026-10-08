@@ -120,6 +120,8 @@ def test_hybrid_config_chart_file_is_valid_yaml():
     assert config["llms"]["nemotron_ultra_llm"]["model_name"] == "nvidia/nemotron-3-super-120b-a12b"
     assert config["llms"]["nemotron_ultra_writer_llm"]["model_name"] == "nvidia/nemotron-3-super-120b-a12b"
     assert config["functions"]["shallow_research_agent"]["llm"] == "nemotron_lightning_agent_llm"
+    assert config["functions"]["shallow_research_agent"]["enforce_citations"] is False
+    assert config["functions"]["deep_research_agent"]["enable_citation_verification"] is True
     assert config["functions"]["clarifier_agent"]["llm"] == "nemotron_ultra_llm"
     assert config["llms"]["nemotron_lightning_agent_llm"]["max_tokens"] == 1536
     assert config["llms"]["nemotron_lightning_intent_llm"]["max_tokens"] == 1024
@@ -144,6 +146,7 @@ def test_hybrid_workflow_model_name_matches_values_global():
     assert config["llms"]["nemotron_lightning_intent_llm"]["model_name"] == served_name
     assert config["llms"]["nemotron_lightning_agent_llm"]["model_name"] == served_name
     assert config["llms"]["nemotron_lightning_agent_llm"]["max_tokens"] == 32768
+    assert config["functions"]["shallow_research_agent"]["enforce_citations"] is False
     assert "thinking_token_budget" not in config["llms"]["nemotron_lightning_agent_llm"]["extra_body"]
 
 
@@ -320,6 +323,10 @@ def test_openshift_overlay_mounts_hybrid_config_and_disables_nginx_ingress():
     }
 
     backend = deployments["aiq-backend"]["spec"]["template"]["spec"]
+    frontend = deployments["aiq-frontend"]["spec"]["template"]["spec"]
+    assert backend["containers"][0]["image"] == "nvcr.io/nvidia/blueprint/aiq-agent:2.2.1"
+    assert frontend["containers"][0]["image"] == "nvcr.io/nvidia/blueprint/aiq-frontend:2.2.1"
+    assert backend["initContainers"][1]["image"] == backend["containers"][0]["image"]
     env = {item["name"]: item.get("value") for item in backend["containers"][0]["env"]}
     volume_names = {volume["name"] for volume in backend["volumes"]}
     config_maps = {volume["configMap"]["name"] for volume in backend["volumes"] if volume.get("configMap") is not None}

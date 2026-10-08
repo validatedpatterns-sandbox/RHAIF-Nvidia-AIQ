@@ -103,6 +103,9 @@ functions:
   shallow_research_agent:
     _type: shallow_research_agent
     llm: nemotron_lightning_agent_llm
+    # AI-Q 2.2.1 returns the sanitized draft when citation validation fails.
+    # This avoids the strict repair timeout, but does not guarantee verified citations.
+    enforce_citations: false
     exclude_tools:
     - advanced_web_search_tool
     max_llm_turns: 10
