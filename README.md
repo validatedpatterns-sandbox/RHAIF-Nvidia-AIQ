@@ -4,7 +4,7 @@ OpenShift [Validated Pattern](https://validatedpatterns.io/) that deploys the
 [NVIDIA AI-Q Blueprint](https://github.com/NVIDIA-AI-Blueprints/aiq) with GitOps.
 This repository is the pattern wrapper (values, charts, overlays, GPU provisioning).
 It does not contain AI-Q application source. Runtime images come from NGC
-(`nvcr.io/nvidia/blueprint/aiq-agent:2.2.0` and `aiq-frontend:2.2.0`).
+(`nvcr.io/nvidia/blueprint/aiq-agent:2.2.1` and `aiq-frontend:2.2.1`).
 
 ## What this pattern deploys
 
@@ -18,6 +18,12 @@ It does not contain AI-Q application source. Runtime images come from NGC
 
 Profile: intent + shallow research on in-cluster vLLM; clarifier + deep research on
 NVIDIA API Catalog (Nemotron 3 Ultra).
+
+Shallow research uses AI-Q 2.2.1's `enforce_citations: false`: it returns the
+sanitized generated answer when citations cannot be verified, instead of failing
+the request through the strict citation-repair path. Such answers may have
+incomplete or missing verified citations. Deep research retains citation
+verification. See the [upstream 2.2.1 release notes](https://github.com/NVIDIA-AI-Blueprints/aiq/releases/tag/v2.2.1).
 
 Model artifacts are published to a TLS-protected RustFS store and cached on each
 selected serving node. Profiles support one-node serving, independent replicas,
